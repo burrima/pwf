@@ -1,0 +1,154 @@
+#!/bin/bash
+# Copyright 2024 Martin Burri
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+
+set -e
+echo "pwf-prepare-lab: ENTRY"
+
+function print_help {
+	cat <<'EOF'
+USAGE
+    pwf-prepare-lab [OPTION...] [PATH_TO_ORIG]
+
+OPTIONS
+    -a     link all source files to lab, independent of preview existance
+    -h     show this help
+
+INFO
+    Prepares the lab folder for a given event path inside the 1_original/ folder
+    structure. If an invalid path is given, the script stops with an error.
+
+    The first time this script is called, it creates a new lab dir and puts only
+    the preview files into 1_previews/ (with date prefixes). This allows the
+    user to do filtering (delete unneeded previews) and to fix the dates (create
+    a get_date.sh script in the lab event folder).
+
+    On the second call of this script, if the lab event dir is already existing,
+    the raw and jpg files are linked, based on the existance of the
+    corresponding preview file.
+
+    This two-stage behavior can be broken into 1-step by setting -a option on
+    the first call. It is also possible to override the preview-based filtering
+    with the same -a option on the second call.
+
+EOF
+
+    _pwf_print_fzf_info
+}
+
+LINK_ALL=false
+
+while getopts 'ha' OPTION; do
+    case "$OPTION" in
+        h) print_help; exit 0 ;;
+        a) LINK_ALL=true ;;
+        *) print_help; exit 1 ;;
+    esac
+done
+
+# make up $DIR variable:
+DIR=${@:$OPTIND:1}
+[[ ! "$DIR" ]] && DIR="."
+[[ -e "$DIR" ]] || (>&2 echo "ERROR: \"$DIR\" does not exist!" && exit 1)
+
+if [[ "$DIR" != *"1_original"* ]]; then
+    >&2 echo "ERROR: PATH must be inside 1_original/!"
+    exit 1
+fi
+
+YEAR=$(cd $DIR/../; echo $(pwd) | grep -oE "[0-9]{4}$")
+if [[ "$YEAR" == "" ]]; then
+    >&2 echo "ERROR: not able to determine year, maybe no event dir given?"
+   exit 1
+fi
+
+EVENT=$(basename $DIR)
+LAB_DIR="$PWF_HOME/2_lab/$YEAR/$EVENT"
+PREVIEW_DIR="$LAB_DIR/1_preview"
+
+set -e
+
+if [[ ! -e "$LAB_DIR" ]] || [[ ! -e "$LAB_DIR/1_preview" ]]; then 
+    echo "STAGE 1: prepare lab dir with previews..."
+
+    echo "Create lab directory: $LAB_DIR ..."
+    mkdir -p "$LAB_DIR"  # -p because year folder might not yet exist
+
+    echo "Prepare previews..."
+    pwf-extract-previews "$DIR" @lab
+
+    echo "Add date-prefix to preview files..."
+    pwf-rename-by-date $PREVIEW_DIR
+
+    if [[ $LINK_ALL == false ]]; then
+        cat <<'EOF'
+
+Lab dir prepared, now check previews for correct order and delete unwanted ones.
+Use "pwf-rename-by-date -u PATH" to remove the date prefixes. Create a
+"get_date.sh" script if required. Re-call this script again to link the
+originals into the lab folder.
+EOF
+        exit 0
+    fi
+fi
+
+echo "STAGE 2: link originals into lab dir..."
+
+echo "Link originals to lab..."
+for t in raw jpg; do
+    [[ -e "$DIR/$t" ]] || continue
+    if [[ -e "$LAB_DIR/2_original_$t" ]]; then
+        echo "2_original_$t exists, skipping it"
+        continue
+    fi
+    for f in $(find "$DIR/$t" -type f); do
+        # cut path and file ending:
+        trunc=$(basename $f)
+        trunc=${trunc%.*}
+        if [[ $LINK_ALL == false ]] && [[ ! $(find $PREVIEW_DIR -name "*$trunc*") ]]; then
+            echo "Ignore $(basename $f) - no preview existing"
+            continue
+        fi
+        mkdir -p "$LAB_DIR/2_original_$t"
+        ln -s "$f" "$LAB_DIR/2_original_$t/"
+    done
+done
+for t in video audio; do
+    [[ -e "$DIR/$t" ]] || continue
+    for f in $(find "$DIR/$t" -type f); do
+        mkdir -p "$LAB_DIR/2_original_$t"
+        ln -s "$f" "$LAB_DIR/2_original_$t/"
+    done
+done
+
+echo "Prepare final folders..."
+([[ -e "$DIR/jpg" ]] || [[ -e "$DIR/raw" ]]) && mkdir -p "$LAB_DIR/3_final_jpg"
+[[ -e "$DIR/audio" ]] && mkdir -p "$LAB_DIR/3_final_audio"
+[[ -e "$DIR/video" ]] && mkdir -p "$LAB_DIR/3_final_video"
+
+cat <<'EOF'
+
+Lab dir is now fully prepared. Now process the files in the '2_original_*'
+folders with editing tools of choice and place the final results into
+'3_final_*' locations. Once done, continue with "pwf-cleanup-lab".
+EOF
+
+echo "pwf-prepare-lab: OK"

@@ -1,0 +1,130 @@
+#!/bin/bash
+# Copyright 2024 Martin Burri
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+
+set -e  # exit on any error
+shopt -s nullglob  # no error when glob has no match
+shopt -s globstar
+echo "pwf-link: ENTRY"
+
+function print_help {
+	cat <<'EOF'
+USAGE
+    pwf-link [OPTION...] SRC [DST_DIR]
+    pwf-link [OPTION...] SRC @lab
+
+OPTIONS
+    -h     show this help
+    -a     link all source files to lab, independent of preview existance
+    -r     recursively seach through subdirectories of given SRC
+
+INFO
+    Links SRC file(s) into the DST_DIR directory.
+
+    SRC can be a file or a folder. Folders can be traversed recursively with the
+    option -r. A DST_DIR can be specified where to place the links. If no 
+    destination is provided, the files will be placed where the script is
+    called from.
+
+    DST_DIR can be set to "@lab" to cause special behavior: In this case, SRC
+    must point to an event folder in the 1_original/ tree. All files are then
+    linked into the corresponding event folder in the 2_lab/ tree, into sub-
+    folders 2_original_{jpg,raw,audio,video} (implies option -r). RAW and JPG
+    images are only linked if a corresponding preview file is present in the
+    folder 1_preview/ of the lab event folder. This can be bypassed with the
+    option -a.
+
+EOF
+
+    _pwf_print_fzf_info
+}
+
+LAB=false
+LINK_ALL=false
+RECURSIVE=false
+
+while getopts 'har' OPTION; do
+    case "$OPTION" in
+        h) print_help; exit 0 ;;
+        a) LINK_ALL=true ;;
+        r) RECURSIVE=true ;;
+        *) print_help; exit 1 ;;
+    esac
+done
+
+# make up source and target variables:
+SRC=${@:$OPTIND:1}
+[[ "$SRC" ]] && DST_DIR=${@:$OPTIND+1:2} || DST_DIR=
+[[ ! "$SRC" || "$SRC" == "." ]] && SRC="$(pwd)"  # use current dir if none given
+[[ "$SRC" == /* ]] || SRC="$(pwd)/$SRC"  # ensure SRC is absolute path
+[[ -e "$SRC" ]] || _pwf_err_exit "\"$SRC\" does not exist!"
+
+# make up $DST_DIR variable:
+if [[ "$DST_DIR" == "" ]]; then
+    DST_DIR="$(pwd)/"
+elif [[ "$DST_DIR" == "@lab" ]]; then
+    LAB=true
+    _pwf_is_event_dir "$SRC" || \
+        _pwf_err_exit "SRC must be an event dir in 1_original/ tree!"
+    DST_DIR="${SRC/1_original/2_lab}"
+    RECURSIVE=true
+fi
+[[ -d "$DST_DIR" ]] || _pwf_err_exit "output directory $DST_DIR does not exist!"
+
+# perform precondition checks:
+pwf-check -o name "$SRC" > /dev/null || exit 1
+
+# define helper methods:
+link_from_lab ()
+{
+    echo "Link originals to lab..."
+    for t in raw jpg audio video; do
+        [[ -e "$SRC/$t" ]] || continue
+        mkdir -p "$DST_DIR/2_original_$t"
+        [[ "$RECURSIVE" == true ]] && G='**' || G=''
+        for f in "$SRC"/$t/$G/*.*; do
+            f_name=$(basename $f)
+            if [[ "$t" == "raw" || "$t" == "jpg" ]]; then
+                trunc=${f_name%.*}
+                if [[ "$LINK_ALL" == false && \
+                    ! $(find "$DST_DIR/1_preview/" -name "*$trunc*") ]]
+                then
+                    echo "Ignore $(basename $f) - no preview existing"
+                    continue
+                fi
+            fi
+            DST="$DST_DIR/2_original_$t/$f_name"
+            [[ -f "$DST" ]] || ln -s -r "$f" "$DST"
+        done
+    done
+}
+
+# special feature: link originals to lab folder:
+if [[ "$LAB" == true ]]; then
+    link_from_lab
+else
+    [[ "$RECURSIVE" == true ]] && G='**' || G=''
+    for f in "$SRC"/$G/*.*; do
+        ln -s -r "$f" "$DST_DIR/"
+    done
+fi
+
+echo "pwf-link: OK"

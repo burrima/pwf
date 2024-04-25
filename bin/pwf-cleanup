@@ -1,0 +1,101 @@
+#!/bin/bash
+# Copyright 2024 Martin Burri
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+
+set -e  # exit on error
+shopt -s nullglob  # no error when glob has no match
+shopt -s globstar  # recursive by default
+echo "pwf-cleanup: ENTRY"
+
+function print_help {
+	cat <<'EOF'
+USAGE
+    pwf-cleanup [OPTION...] [PATH]
+
+OPTIONS
+    -h     show this help
+    -u     undo cleanup - by latest found tar file
+
+TODO: add option to cleanup without crating tar
+
+INFO
+    Cleanup given folder according to following list:
+        * If folder is inside 1_original/: Error, nothing to cleanup
+        * If folder is an event folder insidde 2_lab/: Put a list of preview
+          files plus links to original files into a tar.bz2 archive to save 
+          space and reduce the number of files on the HD. This step is
+          reversible by the -u option.
+
+EOF
+
+    _pwf_print_fzf_info
+}
+
+UNDO=false
+
+while getopts 'hu' OPTION; do
+    case "$OPTION" in
+        h) print_help; exit 0 ;;
+        u) UNDO=true ;;
+        *) print_help; exit 1 ;;
+    esac
+done
+
+# make up $DIR variable:
+DIR=${@:$OPTIND:1}
+[[ ! "$DIR" ]] && DIR=$(pwd)
+[[ -e "$DIR" ]] || _pwf_err_exit "\"$DIR\" does not exist!"
+[[ -d "$DIR" ]] || _pwf_err_exit "PATH must be a directory!"
+
+pwf-check -o name "$DIR" > /dev/null || exit 1
+
+if [[ "$DIR" == *"1_original"* ]]; then
+    _pwf_err_exit "Nothing to cleanup in 1_original folder tree!"
+elif [[ "$DIR" == *"2_lab"* ]]; then
+    [[ ! "$(basename $(dirname "$DIR"))" =~ ^[0-9]{4}$ ]] && \
+        _pwf_err_exit "PATH must be an event directory!"
+
+    if [[ "$UNDO" == false ]]; then
+        ls -1 "$DIR/1_preview/" > "$DIR/1_preview_files.txt"
+        archive="lab-$(date +%Y%m%d-%H%M%S).tar.bz2"
+        echo "Creating tar archive: $archive"
+        (cd "$DIR" && \
+            tar cjf "$archive" 1_preview_files.txt 2_original_* && \
+            rm -r 1_preview &&
+            rm 1_preview_files.txt &&
+            rm -r 2_original_*)
+    else  # UNDO
+        #
+        # TODO: make this whole undo code more robust!
+        #
+        TAR_FILE=$(ls -1 "$DIR"/lab-*.tar.bz2 | sort | tail -1)
+        [[ -e "$TAR_FILE" ]] || _pwf_err_exit "no tar file found!"
+
+        echo "Extracting $TAR_FILE..."
+        (cd "$DIR" && tar xjf $(basename "$TAR_FILE"))
+
+        echo "Restoring preview files..."
+        pwf-extract-previews -f "$DIR/1_preview_files.txt" \
+            "${DIR/2_lab/1_original}" "@lab"
+    fi
+fi
+
+echo "pwf-cleanup: OK"

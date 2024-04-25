@@ -1,0 +1,94 @@
+#!/bin/bash
+# Copyright 2024 Martin Burri
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+
+shopt -s nullglob  # no error when glob has no match
+shopt -s globstar  # recursive by default
+set -e
+
+function print_help {
+	cat <<'EOF'
+USAGE
+    pwf-statistics [OPTION...] [PATH]
+
+OPTIONS
+    -h     show this help
+
+INFO
+    Provides statistics about the files contained in the given PATH.
+
+EOF
+
+    _pwf_print_fzf_info
+}
+
+while getopts 'h' OPTION; do
+    case "$OPTION" in
+        h) print_help; exit 0 ;;
+        *) print_help; exit 1 ;;
+    esac
+done
+
+# make up $DIR variable:
+DIR=${@:$OPTIND:1}
+[[ ! "$DIR" ]] && DIR="."
+[[ -e "$DIR" ]] || _pwf_err_exit "\"$DIR\" does not exist!"
+
+total_raw_size_b=0
+n_raws=0
+X=($PWF_RAW_EXTENSIONS) RAW_GLOBS=${X[@]/#/"$DIR/**/*."}
+for r in $RAW_GLOBS; do
+  size=$(stat --printf="%s" "$r")
+  total_raw_size_b=$(( total_raw_size_b + size ))
+  n_raws=$(( n_raws + 1 ))
+done
+
+total_jpg_size_b=0
+n_jpgs=0
+X=($PWF_JPG_EXTENSIONS) JPG_GLOBS=${X[@]/#/"$DIR/**/*."}
+for r in $JPG_GLOBS; do
+  size=$(stat --printf="%s" "$r")
+  total_jpg_size_b=$(( total_jpg_size_b + size ))
+  n_jpgs=$(( n_jpgs + 1 ))
+done
+
+total_video_size_b=0
+n_videos=0
+for r in "$DIR"/**/*.{mp4,mpeg,mov,MP4,MPEG,MOV}; do
+  size=$(stat --printf="%s" "$r")
+  total_video_size_b=$(( total_video_size_b + size ))
+  n_videos=$(( n_videos + 1 ))
+done
+
+total_audio_size_b=0
+n_audios=0
+for r in "$DIR"/**/*.{wav,WAV,mp3,MP3}; do
+  size=$(stat --printf="%s" "$r")
+  total_audio_size_b=$(( total_audio_size_b + size ))
+  n_audios=$(( n_audios + 1 ))
+done
+
+echo "Folder:      $(cd "$DIR" && pwd)"
+echo "RAW images:  $(echo -n "$n_raws") ($(echo -n $total_raw_size_b | numfmt --to=iec ))"
+echo "JPG images:  $(echo -n "$n_jpgs") ($(echo -n $total_jpg_size_b | numfmt --to=iec ))"
+echo "Videos:      $(echo -n "$n_videos") ($(echo -n $total_video_size_b | numfmt --to=iec ))"
+echo "Audio files: $(echo -n "$n_audios") ($(echo -n $total_audio_size_b | numfmt --to=iec ))"
+

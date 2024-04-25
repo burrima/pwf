@@ -1,0 +1,161 @@
+#!/bin/bash
+# Copyright 2024 Martin Burri
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+
+set -e  # exit on any error
+shopt -s nullglob  # no error when glob has no match
+shopt -s globstar
+echo "pwf-extract-previews: ENTRY"
+
+print_help () {
+	cat <<'EOF'
+USAGE
+    pwf-extract-previews [OPTION...] [SRC [DST_DIR]]
+    pwf-extract-previews [OPTION...] SRC @lab
+
+OPTIONS
+    -h     show this help
+    -r     recursively seach through subdirectories of given SRC
+    -f     provide filter-file to only generate previews of listed files
+
+INFO
+    Creates small preview images out of RAW and JPG files. For RAW files, the
+    preview images are extracted from the exif info. For JPG files, a smaller
+    version of the original is created.
+
+    SRC can be a file or a folder. Folders can be traversed recursively with the
+    option -r. A DST_DIR can be specified where to place the preview images. If
+    no destination is provided, the files will be placed where the script is
+    called from.
+
+    The option -f can be used to only create preview files if the source file
+    name is listed in the given filter file. This is used to restore cleaned-up
+    lab folders.
+
+    DST_DIR can be set to "@lab" to cause special behavior: In this case, SRC
+    must point to an event folder in the 1_original/ tree. A preview of all JPG
+    and RAW photos will be put into the corresponding event folder in the
+    2_lab/ tree, into a subfolder 1_preview/ (implies option -r).
+
+EOF
+
+    _pwf_print_fzf_info
+}
+
+RECURSIVE=false
+FILTER_FILE=
+
+while getopts 'hrf:' OPTION; do
+	case "$OPTION" in
+		h) print_help; exit 0 ;;
+        r) RECURSIVE=true ;;
+        f) FILTER_FILE="$OPTARG" ;;
+		*) print_help; exit 1 ;;
+	esac
+done
+
+# make up $SRC variable:
+SRC=${@:$OPTIND:1}
+[[ "$SRC" ]] && DST_DIR=${@:$OPTIND+1:2} || DST_DIR=
+[[ ! "$SRC" || "$SRC" == "." ]] && SRC="$(pwd)"  # use current dir if none given
+[[ "$SRC" == /* ]] || SRC="$(pwd)/$SRC"  # ensure SRC is absolute path
+[[ -e "$SRC" ]] || _pwf_err_exit "\"$SRC\" does not exist!"
+
+# make up $DST_DIR variable:
+if [[ "$DST_DIR" == "" ]]; then
+    DST_DIR="$(pwd)/"
+elif [[ "$DST_DIR" == "@lab" ]]; then
+    _pwf_is_event_dir "$SRC" || \
+        _pwf_err_exit "SRC must be an event dir in 1_original/ tree!"
+    DST_DIR="${SRC/1_original/2_lab}/1_preview"
+    mkdir -p "$DST_DIR"
+    RECURSIVE=true
+fi
+[[ -d "$DST_DIR" ]] || _pwf_err_exit "output directory $DST_DIR does not exist!"
+
+# perform precondition checks:
+pwf-check -o name "$SRC" > /dev/null || exit 1
+[[ "$FILTER_FILE" && ! -f "$FILTER_FILE" ]] && \
+    _pwf_err_exit "provided filter file not found!"
+
+# define helper functions:
+extract_raw_preview ()
+{
+    f="$1"
+    f_name=$(basename "$f")
+    if [[ $FILTER_FILE ]]; then
+        grep -q "$f_name" "$FILTER_FILE" || return 0
+    fi
+    tmp_file="/tmp/${f_name%.*}-preview3.jpg"
+    preview_file="$DST_DIR/$f_name-preview.jpg"
+
+    # ignore already existing previews
+    [[ -f "$preview_file" ]] && return 0
+
+    echo "$f"
+
+    orientation=$(exiv2 -Pv -g Exif.Image.Orientation "$f")
+    date=$(exiv2 -Pv -g Exif.Photo.DateTimeOriginal "$f")
+
+    exiv2 -ep3 -l/tmp -f "$f"  # creates "$tmp_file"
+
+    exiv2 -M"set Exif.Image.Orientation $orientation" "$tmp_file"
+    exiv2 -M"set Exif.Photo.DateTimeOriginal $date" "$tmp_file"
+
+    convert -filter Sinc -resize 'x1080>' -quality 85 "$tmp_file" "$preview_file"
+    rm "$tmp_file"
+}
+
+extract_jpg_preview ()
+{
+    f="$1"
+    # NOTE: jpegs have usually no preview embedded, so we just create a 
+    # resized version of the originals
+ 
+    f_name=$(basename "$f")
+    if [[ $FILTER_FILE ]]; then
+        grep -q "$f_name" "$FILTER_FILE" || return 0
+    fi
+    preview_file="$DST_DIR/${f_name}-preview.jpg"
+
+    # ignore already existing previews
+    [[ -f "$preview_file" ]] && return 0
+
+    echo "$f"
+
+    convert -filter Sinc -resize 'x1080>' -quality 85 "$f" "$preview_file"
+}
+
+# process images as required:
+if [[ -d "$SRC" ]]; then
+    [[ "$RECURSIVE" == true ]] && G='**' || G=''
+
+    X=($PWF_RAW_EXTENSIONS) RAW_GLOBS=${X[@]/#/"$SRC/$G/*."}
+    for f in $RAW_GLOBS; do extract_raw_preview "$f"; done
+
+    X=($PWF_JPG_EXTENSIONS) JPG_GLOBS=${X[@]/#/"$SRC/$G/*."}
+    for f in $JPG_GLOBS; do extract_jpg_preview "$f"; done
+else
+    [[ "$SRC" =~ $PWF_RAW_REGEX ]] && extract_raw_preview "$SRC"
+    [[ "$SRC" =~ $PWF_JPG_REGEX ]] && extract_jpg_preview "$SRC"
+fi
+
+echo "pwf-extract-previews: OK"

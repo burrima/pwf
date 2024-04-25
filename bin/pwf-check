@@ -1,0 +1,426 @@
+#!/bin/bash
+# Copyright 2024 Martin Burri
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+
+set -e  # exit on any error
+shopt -s nullglob  # no error when glob has no match
+shopt -s globstar  # recursive by default
+echo "pwf-check: ENTRY"
+
+function print_help {
+	cat <<'EOF'
+USAGE
+    pwf-check [OPTION...] [PATH]
+
+OPTIONS
+    -h     show this help
+
+    All checks are enabled by default, but can be disabled individually:
+    -i IL  ignore check by ignore-list (IL) of comma-separated values:
+           cs    ignore wrong checksums
+           dup   ignore duplicates
+           miss  ignore missing files (compared to md5 checksum file)
+           name  ignore name violations (not allowed!)
+           path  ingore path violations
+           prot  ignore protection violations
+           raw   ignore RAW derivatives
+    -o OL  check only the things listed (see -i for possible items)
+
+    -f     auto-fix wrong names if possible
+    -n     nono, dry-run, only print what would be done
+
+INFO
+    Performs various checks against the given folder:
+        * file and folder names
+        * duplicates
+        * RAW derivatives (files other than RAW but with same name pattern)
+        * file and folder protection (useful only for 1_original/ folders)
+        * MD5 checksums (useful only for 1_original/ folders)
+        * Missing files (compared to MD5 checksum file) - not done when MD5
+          checking is enabled (is covered by MD5 checking)
+        * file and folder structure (path)
+    Checks can be disabled individually, see OPTIONS above.
+    
+EOF
+
+    _pwf_print_fzf_info
+}
+
+PWF_VALID_FILES="\
+    NEF:raw \
+    NRW:raw \
+    CR2:raw \
+    jpg:jpg \
+    jpeg:jpg \
+    JPG:jpg \
+    JPEG:jpg \
+    MOV:video \
+    mp4:video \
+    MP4:video \
+    mpeg:video \
+    mov:video \
+    MOV:video \
+    wav:audio \
+    WAV:audio \
+    mp3:audio"
+IGNORE_LIST=
+ONLY_LIST=
+CHK_CHECKSUMS=true
+CHK_DUPLICATES=true
+CHK_MISSING=true
+CHK_NAMES=true
+CHK_PROTECTION=true
+CHK_RAW_DERIVATES=true
+CHK_PATHS=true
+AUTO_FIX=false
+DRY_RUN=false
+
+while getopts 'hi:o:fn' OPTION; do
+    case "$OPTION" in
+        h) print_help; exit 0 ;;
+        i) IGNORE_LIST="$OPTARG" ;;
+        o) ONLY_LIST="$OPTARG" ;;
+        f) AUTO_FIX=true ;;
+        n) DRY_RUN=true ;;
+        *) print_help; exit 1 ;;
+    esac
+done
+
+# make up $DIR variable:
+DIR=${@:$OPTIND:1}
+[[ ! "$DIR" || "$DIR" == "." ]] && DIR="$(pwd)"  # use current dir if none given
+[[ "$DIR" == /* ]] || DIR="$(pwd)/$DIR"  # ensure DIR is absolute path
+[[ -e "$DIR" ]] || _pwf_err_exit "\"$DIR\" does not exist!"
+
+# check parameters
+[[ $IGNORE_LIST && $ONLY_LIST ]] && \
+    _pwf_err_exit "-i and -o cannot be set at the same time!"
+
+if [[ $IGNORE_LIST ]]; then
+    [[ "$IGNORE_LIST" == *"name"* ]] && \
+        echo "WARNING: Ignoring name violations is strongly discouraged!"
+    [[ "$DIR" == *"0_new"* && "$IGNORE_LIST" == *"dup"* ]] && \
+        _pwf_err_exit "Ignoring duplicate violations is not allowed!"
+    [[ "$DIR" == *"0_new"* && "$IGNORE_LIST" == *"path"* ]] && \
+        _pwf_err_exit "Ignoring path violations is not allowed!"
+fi
+
+# automatically set ignore flags based on $DIR:
+[[ "$DIR" == *"0_new"* ]] && IGNORE_LIST="$IGNORE_LIST,cs,miss,prot"
+[[ "$DIR" == *"2_lab"* ]] && IGNORE_LIST="$IGNORE_LIST,cs,miss,prot,path"
+
+# set flags based on only-list:
+if [[ $ONLY_LIST ]]; then
+    CHK_CHECKSUMS=false
+    CHK_DUPLICATES=false
+    CHK_MISSING=false
+    CHK_NAMES=true  # this is always enabled!
+    CHK_PATHS=false
+    CHK_PROTECTION=false
+    CHK_RAW_DERIVATES=false
+
+    for what in ${ONLY_LIST//,/ }; do
+        case $what in
+            cs) CHK_CHECKSUMS=true ;;
+            dup) CHK_DUPLICATES=true ;;
+            miss) CHK_MISSING=true ;;
+            name) CHK_NAMES=true ;;
+            path) CHK_PATHS=true ;;
+            prot) CHK_PROTECTION=true ;;
+            raw) CHK_RAW_DERIVATES=true ;;
+            *) _pwf_err_exit "Option -o does not know $what" ;;
+        esac
+    done
+fi
+
+# set flags based on ignore-list:
+for what in ${IGNORE_LIST//,/ }; do
+    case $what in
+        cs) CHK_CHECKSUMS=false ;;
+        dup) CHK_DUPLICATES=false ;;
+        miss) CHK_MISSING=false ;;
+        name) CHK_NAMES=false ;;
+        path) CHK_PATHS=false ;;
+        prot) CHK_PROTECTION=false ;;
+        raw) CHK_RAW_DERIVATES=false ;;
+        *) _pwf_err_exit "Option -i does not know $what" ;;
+    esac
+done
+
+check_names ()
+{
+    local found_any=false
+    for e in "$DIR" "$DIR"/**/*; do
+        name=$(basename "$e")
+        [[ "$name" =~ [^$PWF_ALLOWED_CHARACTERS] ]] && \
+            echo "Illegal: $e" && found_any=true
+    done
+    [[ "$found_any" == false ]] || \
+            _pwf_err_exit "found illegal characters in file or folder names!"
+    return 0
+}
+
+fix_names ()
+{
+    local replace_pattern='s/ /_/g;s/\&/und/g;s/\-_//g'
+
+    [[ "$DRY_RUN" == true ]] && echo "Dry-run: would do the following:"
+
+    for e in "$DIR" "$DIR"/**/*; do
+        name=$(basename "$e")
+        if [[ "$name" =~ [^$PWF_ALLOWED_CHARACTERS] ]]; then
+            folder=$(dirname "$e")
+            newname=$(echo "$name" | sed -e "$replace_pattern")
+            [[ "$DRY_RUN" == true ]] && \
+                echo "mv $e $folder/$newname" || \
+                mv "$e" "$folder/$newname"
+        fi
+    done
+
+    # update working $DIR as well:
+    [[ "$DRY_RUN" == false ]] && DIR=$(echo "$DIR" | sed -e "$replace_pattern")
+    return 0
+}
+
+check_duplicates ()
+{
+    local found_any=false
+    declare -A local files
+
+    for e in "$DIR"/**/*; do
+        [[ -f "$e" ]] || continue
+        local crc=$(cksum "$e")
+        crc=${crc%%[ .]*}
+        if [[ ${files[$crc]} ]]; then
+            echo "Duplicates:"
+            echo "  $crc ${files[$crc]}"
+            echo "  $crc $e"
+            found_any=true
+        else
+            files[$crc]="$e"
+        fi
+    done
+
+    [[ $found_any == true ]] && _pwf_err_exit "duplicate files found!"
+    return 0
+}
+
+check_protection ()
+{
+    local found_any=false
+
+    for e in "$DIR" "$DIR"/**/*; do
+        [[ -f "$e" || -d "$e" ]] || continue  # ignore links
+        local hex_flags=0x$(stat -c%a "$e")
+        if [[ $(( hex_flags & 0x222 )) != 0 ]]; then
+            local flags=$(stat -c%A "$e")
+            echo "Not protected: $flags $e"
+            found_any=true
+        fi
+    done
+
+    [[ $found_any == true ]] && \
+        _pwf_err_exit "unprotected files or directories found!"
+    return 0
+}
+
+check_raw_derivatives ()
+{
+    local found_any=false
+
+    # for each raw file, search any file with same name but different ending
+    X=($PWF_RAW_EXTENSIONS) RAW_GLOBS=${X[@]/#/"$DIR/**/*."}
+    for r in $RAW_GLOBS; do
+        local base=$(basename "$r")  # cut path away
+        base=${base%.*}  # cut file ending away
+
+        # be more aggressive in finding the RAW base name by only considering
+        # the last 8 characters of the base name (cut away any prefix).
+        # This matches names like DSC_1234 or IMG_1234, as usually used by
+        # cameras. This is not so robust, but ok for my personal needs.
+        base=${base: -8}
+
+        for f in "$DIR"/**/*$base*; do
+            [[ "$f" =~ $PWF_RAW_REGEX ]] && continue
+            echo "Potential RAW derivative found:"
+            echo "  derivative: $f"
+            echo "  origin raw: $r"
+            found_any=true
+        done
+    done
+
+    [[ $found_any == true ]] && _pwf_err_exit "RAW derivatives found!"
+    return 0
+}
+
+check_paths ()
+{
+    local found_any=false
+
+    for file in "$DIR"/**/*; do
+        [[ -f "$file" ]] || continue
+
+        parent=$(dirname "$file")
+        parent=$(basename "$parent")
+
+        filename=$(basename "$file")
+        extension=${filename##*.}
+
+        [[ "$filename" == "get_date.sh" ]] && continue
+
+        is_valid="false"
+        for pat in $PWF_VALID_FILES; do
+            OIFS=$IFS; IFS=":" read valext valpar <<< ${pat}; IFS=$OIFS
+            if [[ "$extension" == "$valext" && "$parent" == "$valpar" ]]; then
+                is_valid="true" 
+                break
+            fi
+        done
+        if [[ "$is_valid" == "false" ]]; then 
+            echo "Illegal file: $file"
+            found_any=true
+        fi
+    done
+
+    [[ "$found_any" == true ]] && \
+        _pwf_err_exit "found problem in path structure!"
+    return 0
+}
+
+check_checksums ()
+{
+    local parent=$(dirname "$DIR")
+    local dirname=$(basename "$DIR")
+
+    cd "$parent"
+
+    local md5_file="$dirname.md5"
+
+    [[ -e "$md5_file" ]] || _pwf_err_exit "MD5 file not found!"
+
+    set +e
+    md5sum -c --quiet "$md5_file" || _pwf_err_exit "MD5 check failed!"
+    set -e
+
+    cd - > /dev/null
+    return 0
+}
+
+check_missing ()
+{
+    local parent=$(dirname "$DIR")
+    local dirname=$(basename "$DIR")
+    local found_any=false
+
+    cd "$parent"
+
+    local md5_file="$dirname.md5"
+
+    [[ -e "$md5_file" ]] || _pwf_err_exit "MD5 file not found!"
+
+    while IFS= read -r line; do
+        file=${line:34}
+        [[ !  -e "$file" ]] && echo "Missing file: $file" && found_any=true
+    done < "$md5_file"
+
+    cd - > /dev/null
+
+    [[ "$found_any" == true ]] && \
+        _pwf_err_exit "found missing files!"
+    return 0
+}
+
+#
+# check names
+#
+if [[ "$CHK_NAMES" == true ]]; then
+    echo "Checking names..."
+    if [[ "$AUTO_FIX" == true ]]; then
+        fix_names
+        [[ "$DRY_RUN" == true ]] && exit 0
+        echo "Names updated, checking again..."
+        check_names
+    else
+        check_names
+    fi
+else
+    echo "WARNING: Names not checked!"
+fi
+
+#
+# Check duplicates
+#
+if [[ "$CHK_DUPLICATES" == true ]]; then
+    echo "Checking duplicates..."
+    check_duplicates
+else
+    echo "WARNING: Duplicates not checked!"
+fi
+
+#
+# Check file protection
+#
+if [[ "$CHK_PROTECTION" == true ]]; then
+    echo "Checking file protection..."
+    check_protection
+else
+    echo "WARNING: file protection not checked!"
+fi
+
+#
+# Check RAW derivatives
+#
+if [[ "$CHK_RAW_DERIVATES" == true ]]; then
+    echo "Checking RAW derivatives..."
+    check_raw_derivatives
+else
+    echo "WARNING: RAW derivatives not checked!"
+fi
+
+#
+# Check paths
+#
+if [[ "$CHK_PATHS" == true ]]; then
+    echo "Checking paths..."
+    check_paths
+else
+    echo "WARNING: paths not checked!"
+fi
+
+#
+# Check checksums
+#
+if [[ "$CHK_CHECKSUMS" == true ]]; then
+    echo "Checking checksums and missing files..."
+    check_checksums
+else
+    if [[ "$CHK_MISSING" == true ]]; then
+        echo "WARNING: checksums not checked! But checking for missing files..."
+        check_missing
+    else
+        echo "WARNING: neither checksums nor missing files checked!"
+    fi
+fi
+
+# TODO: add checking of:
+#  - write-protection of files in 1_original tree
+
+echo "pwf-check: OK"

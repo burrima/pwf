@@ -1,0 +1,94 @@
+#!/bin/bash
+# Copyright 2024 Martin Burri
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+
+set -e
+
+function print_help {
+	cat <<'EOF'
+USAGE
+    pwf-statistics [OPTION...] [PATH]
+
+OPTIONS
+    -h     show this help
+
+INFO
+    Provides statistics about the files contained in the given PATH.
+
+    A PATH can be specified either by by normal means of bash or by using the
+    FZF tool. Write 
+
+        pwf-statistics **<tab>
+
+    to bring the FZF tool to front where you can select the desired path much
+    faster. Paths are automatically bound to the pwf folder structure, so the
+    check tool can be used from anywhere. If no PATH is specified, the current
+    directory will be taken.
+EOF
+}
+
+while getopts 'h' OPTION; do
+    case "$OPTION" in
+        h) print_help; exit 0 ;;
+        *) print_help; exit 1 ;;
+    esac
+done
+
+# make up $DIR variable:
+DIR=${@:$OPTIND:1}
+[[ ! "$DIR" ]] && DIR="."
+[[ -e "$DIR" ]] || (>&2 echo "ERROR: \"$DIR\" does not exist!" && exit 1)
+
+raws=$(find "$DIR" -type f -a $PWF_RAW_FIND_PATTERN)
+jpgs=$(find "$DIR" -type f -a $PWF_JPG_FIND_PATTERN)
+videos=$(find "$DIR" -type f -a $PWF_VIDEO_FIND_PATTERN)
+audios=$(find "$DIR" -type f -a $PWF_AUDIO_FIND_PATTERN)
+
+total_raw_size_b=0
+for r in $raws; do
+  size=$(stat --printf="%s" $r)
+  total_raw_size_b=$(( total_raw_size_b + size ))
+done
+
+total_jpg_size_b=0
+for r in $jpgs; do
+  size=$(stat --printf="%s" $r)
+  total_jpg_size_b=$(( total_jpg_size_b + size ))
+done
+
+total_video_size_b=0
+for r in $videos; do
+  size=$(stat --printf="%s" $r)
+  total_video_size_b=$(( total_video_size_b + size ))
+done
+
+total_audio_size_b=0
+for r in $audios; do
+  size=$(stat --printf="%s" $r)
+  total_audio_size_b=$(( total_audio_size_b + size ))
+done
+
+echo "Folder:      $(cd "$DIR" && pwd)"
+echo "RAW images:  $(echo -n "$raws" | wc -l) ($(echo -n $total_raw_size_b | numfmt --to=iec ))"
+echo "JPG images:  $(echo -n "$jpgs" | wc -l) ($(echo -n $total_jpg_size_b | numfmt --to=iec ))"
+echo "Videos:      $(echo -n "$videos" | wc -l) ($(echo -n $total_video_size_b | numfmt --to=iec ))"
+echo "Audio files: $(echo -n "$audios" | wc -l) ($(echo -n $total_audio_size_b | numfmt --to=iec ))"
+

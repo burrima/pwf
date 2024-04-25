@@ -1,0 +1,123 @@
+#!/bin/bash
+# Copyright 2024 Martin Burri
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+
+set -e
+echo "pwf-downsize-video: ENTRY"
+
+function print_help {
+	cat <<'EOF'
+USAGE
+    pwf-downsize-video [OPTION...] [PATH]
+
+OPTIONS
+    -h     show this help
+    -s S   specify output size by pixels in ffmpeg widthxheight format
+    -t T   specify output size by tag:
+               
+               UHD   3840x2160
+               QHD   2560x1440
+               FHD   1920x1080
+               HD    1280x720
+
+INFO
+    Make videos smaller in size to save space. Useful for web presentation.
+
+    Normally, the user would specify a tag with the -t option to automatically
+    let the script select the correct settings. But the -s option provides
+    more control as it passes the size directly to ffmpeg. See
+    https://ffmpeg.org/ffmpeg-filters.html#scale-1 for more information.
+
+    A PATH can be specified either by by normal means of bash or by using the
+    FZF tool. Write 
+
+        pwf-downsize-video **<tab>
+
+    to bring the FZF tool to front where you can select the desired path much
+    faster. Paths are automatically bound to the pwf folder structure, so the
+    check tool can be used from anywhere. If no PATH is specified, the current
+    directory will be taken.
+EOF
+}
+
+SIZE=
+TAG=
+
+while getopts 'hs:t:' OPTION; do
+    case "$OPTION" in
+        h) print_help; exit 0 ;;
+        s) SIZE="$OPTARG" ;;
+        t) TAG="$OPTARG" ;;
+        *) print_help; exit 1 ;;
+    esac
+done
+
+# make up $DIR variable:
+DIR=${@:$OPTIND:1}
+[[ ! "$DIR" ]] && DIR="."
+[[ -e "$DIR" ]] || (>&2 echo "ERROR: \"$DIR\" does not exist!" && exit 1)
+
+# perform checks:
+if [[ $SIZE ]]; then
+    if [[ $TAG =~ ^(UHD|QHD|FHD|HD)$ ]]; then
+        >&2 echo "ERROR: given reserved tag not allowed together with size!"
+        exit 1
+    fi
+else  # no size given
+    if [[ $TAG == HD ]]; then SIZE='-1x720^'
+    elif [[ $TAG == FHD ]]; then SIZE='-1x1080^'
+    elif [[ $TAG == QHD ]]; then SIZE='-1x1440^'
+    elif [[ $TAG == UHD ]]; then SIZE='-1x2160^'
+    else
+        >&2 echo "ERROR: given tag requires size to be specified too!"
+        exit 1
+    fi
+fi
+
+if [[ -d "$DIR" ]]; then
+    foldername=$(cd "$DIR" && pwd)  # absolute path
+else
+    foldername=$(dirname "$DIR")
+    foldername=$(cd $foldername && pwd)  # absolute path
+fi
+
+echo "Downsizing to $SIZE with tag \"$TAG\"..."
+
+OUT_DIR="$foldername/$TAG"
+mkdir -p "$OUT_DIR"
+
+files=$(find $DIR -maxdepth 1 -not -type d)
+for in_file in $files; do
+    filename=$(basename $in_file)
+    [[ -d $in_file ]] && continue  # ignore directories
+    extension="${filename##*.}"
+    base="${filename%.*}"
+    out_file="$OUT_DIR/$base-$TAG.$extension"
+
+    # ignore already existing out files
+    [[ -f "$out_file" ]] && continue
+
+    echo $filename
+
+    ffmpeg -i $in_file -vf scale="$SIZE" -c:v libx265 $out_file
+done
+
+echo "pwf-downsize-video: OK"

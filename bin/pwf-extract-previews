@@ -1,0 +1,120 @@
+#!/bin/bash
+# Copyright 2024 Martin Burri
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+
+set -e
+echo "pwf-extract-previews: ENTRY"
+
+print_help () {
+	cat <<'EOF'
+USAGE
+    pwf-extract-previews [OPTION...] [PATH_TO_RAW]
+
+OPTIONS
+    -h     show this help
+    -o     directory to put preview files into (default is along RAW files)
+
+INFO
+    Creates small preview images out of RAW and JPG files. For RAW files, the
+    preview images are extracted from the exif info. For JPG files, a smaller
+    version of the original is created.
+
+    A PATH can be specified either by by normal means of bash or by using the
+    FZF tool. Write 
+
+        pwf-extract-previews **<tab>
+
+    to bring the FZF tool to front where you can select the desired path much
+    faster. Paths are automatically bound to the pwf folder structure, so the
+    check tool can be used from anywhere. If no PATH is specified, the current
+    directory will be taken.
+EOF
+}
+
+OUT_DIR=
+
+while getopts 'ho:' OPTION; do
+	case "$OPTION" in
+		h) print_help; exit 0 ;;
+        o) OUT_DIR="$OPTARG" ;;
+		*) print_help; exit 1 ;;
+	esac
+done
+
+# make up $DIR variable:
+DIR=${@:$OPTIND:1}
+[[ ! "$DIR" ]] && DIR="."
+[[ -e "$DIR" ]] || (>&2 echo "ERROR: \"$DIR\" does not exist!" && exit 1)
+
+# perform precondition checks:
+pwf-check -o name "$DIR" > /dev/null || exit 1
+
+# define output directory:
+if [[ ! "$OUT_DIR" ]]; then
+    [[ -d "$DIR" ]] && OUT_DIR=$DIR || OUT_DIR=$(dirname $DIR)
+fi
+
+[[ -d "$OUT_DIR" ]] || \
+    (>&2 echo "ERROR: output directory does not exist!" && exit 1)
+
+set -e
+
+# RAW files...
+files=$(find "$DIR" -maxdepth 1 -type f $PWF_RAW_FIND_PATTERN)
+for f in $files; do
+    f_name=$(basename $f)
+    tmp_file="/tmp/${f_name%.*}-preview3.jpg"
+    preview_file="$OUT_DIR/$f_name-preview.jpg"
+
+    # ignore already existing previews
+    [[ -f "$preview_file" ]] && continue
+
+    echo $f
+
+    orientation=$(exiv2 -Pv -g Exif.Image.Orientation $f)
+    date=$(exiv2 -Pv -g Exif.Photo.DateTimeOriginal $f)
+
+    exiv2 -ep3 -l/tmp -f $f  # creates "$tmp_file"
+
+    exiv2 -M"set Exif.Image.Orientation $orientation" "$tmp_file"
+    exiv2 -M"set Exif.Photo.DateTimeOriginal $date" "$tmp_file"
+
+    convert -filter Sinc -resize 'x1080>' -quality 85 "$tmp_file" "$preview_file"
+done
+
+# JPG files...
+files=$(find "$DIR" -maxdepth 1 -type f $PWF_JPG_FIND_PATTERN)
+for f in $files; do
+    # NOTE: jpegs have usually no preview embedded, so we just create a 
+    # resized version of the originals
+ 
+    f_name=$(basename $f)
+    preview_file="$OUT_DIR/${f_name}-preview.jpg"
+
+    # ignore already existing previews
+    [[ -f "$preview_file" ]] && continue
+
+    echo $f
+
+    convert -filter Sinc -resize 'x1080>' -quality 85 $f $preview_file
+done
+
+echo "pwf-extract-previews: OK"

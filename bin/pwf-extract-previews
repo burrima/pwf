@@ -21,21 +21,27 @@
 #
 
 set -e
+shopt -s nullglob
 echo "pwf-extract-previews: ENTRY"
 
 print_help () {
 	cat <<'EOF'
 USAGE
-    pwf-extract-previews [OPTION...] [PATH_TO_RAW]
+    pwf-extract-previews [OPTION...] [PATH]
 
 OPTIONS
     -h     show this help
-    -o     directory to put preview files into (default is along RAW files)
+    -o     directory to put preview files into (default is given PATH)
+    -l     put previews into a new Lab folder
+    -r     recursively seach through subdirectories of given PATH
 
 INFO
     Creates small preview images out of RAW and JPG files. For RAW files, the
     preview images are extracted from the exif info. For JPG files, a smaller
     version of the original is created.
+
+    The option -l can be used to prepare a Lab folder, given that the PATH is
+    pointing to an event folder in the 1_original/ structure.
 
     A PATH can be specified either by by normal means of bash or by using the
     FZF tool. Write 
@@ -50,11 +56,15 @@ EOF
 }
 
 OUT_DIR=
+LAB=false
+RECURSIVE=false
 
-while getopts 'ho:' OPTION; do
+while getopts 'ho:lr' OPTION; do
 	case "$OPTION" in
 		h) print_help; exit 0 ;;
         o) OUT_DIR="$OPTARG" ;;
+        l) LAB=true && RECURSIVE=true ;;
+        r) RECURSIVE=true ;;
 		*) print_help; exit 1 ;;
 	esac
 done
@@ -62,37 +72,45 @@ done
 # make up $DIR variable:
 DIR=${@:$OPTIND:1}
 [[ ! "$DIR" ]] && DIR="."
-[[ -e "$DIR" ]] || (>&2 echo "ERROR: \"$DIR\" does not exist!" && exit 1)
+[[ -e "$DIR" ]] || _pwf_err_exit "\"$DIR\" does not exist!"
 
 # perform precondition checks:
-pwf-check -o name "$DIR" > /dev/null || exit 1
+[[ "$OUT_DIR" && "$LAB" == true ]] && \
+    _pwf_err_exit "options -o and -l cannot be combined!"
+# pwf-check -o name "$DIR" > /dev/null || exit 1
 
 # define output directory:
 if [[ ! "$OUT_DIR" ]]; then
-    [[ -d "$DIR" ]] && OUT_DIR=$DIR || OUT_DIR=$(dirname $DIR)
+    if [[ "$LAB" == false ]]; then
+        # if $DIR is a file, adapt:
+        [[ -d "$DIR" ]] && OUT_DIR="$DIR" || OUT_DIR=$(dirname "$DIR")
+    else  # LAB
+        _pwf_is_event_dir "$DIR" || \
+            _pwf_err_exit "PATH must be an event dir in 1_original/ tree!"
+        OUT_DIR="${DIR/1_original/2_lab}/1_preview"
+        mkdir -p "$OUT_DIR"
+    fi
 fi
 
-[[ -d "$OUT_DIR" ]] || \
-    (>&2 echo "ERROR: output directory does not exist!" && exit 1)
+[[ -d "$OUT_DIR" ]] || _pwf_err_exit "output directory does not exist!"
 
-set -e
+[[ "$RECURSIVE" == true ]] && shopt -s globstar
 
 # RAW files...
-files=$(find "$DIR" -maxdepth 1 -type f $PWF_RAW_FIND_PATTERN)
-for f in $files; do
-    f_name=$(basename $f)
+for f in "$DIR"/**/*.{NEF,NRW,CR2}; do
+    f_name=$(basename "$f")
     tmp_file="/tmp/${f_name%.*}-preview3.jpg"
     preview_file="$OUT_DIR/$f_name-preview.jpg"
 
     # ignore already existing previews
     [[ -f "$preview_file" ]] && continue
 
-    echo $f
+    echo "$f"
 
-    orientation=$(exiv2 -Pv -g Exif.Image.Orientation $f)
-    date=$(exiv2 -Pv -g Exif.Photo.DateTimeOriginal $f)
+    orientation=$(exiv2 -Pv -g Exif.Image.Orientation "$f")
+    date=$(exiv2 -Pv -g Exif.Photo.DateTimeOriginal "$f")
 
-    exiv2 -ep3 -l/tmp -f $f  # creates "$tmp_file"
+    exiv2 -ep3 -l/tmp -f "$f"  # creates "$tmp_file"
 
     exiv2 -M"set Exif.Image.Orientation $orientation" "$tmp_file"
     exiv2 -M"set Exif.Photo.DateTimeOriginal $date" "$tmp_file"
@@ -101,20 +119,19 @@ for f in $files; do
 done
 
 # JPG files...
-files=$(find "$DIR" -maxdepth 1 -type f $PWF_JPG_FIND_PATTERN)
-for f in $files; do
+for f in "$DIR"/**/*.{jpg,jpeg,JPG,JPEG}; do
     # NOTE: jpegs have usually no preview embedded, so we just create a 
     # resized version of the originals
  
-    f_name=$(basename $f)
+    f_name=$(basename "$f")
     preview_file="$OUT_DIR/${f_name}-preview.jpg"
 
     # ignore already existing previews
     [[ -f "$preview_file" ]] && continue
 
-    echo $f
+    echo "$f"
 
-    convert -filter Sinc -resize 'x1080>' -quality 85 $f $preview_file
+    convert -filter Sinc -resize 'x1080>' -quality 85 "$f" "$preview_file"
 done
 
 echo "pwf-extract-previews: OK"

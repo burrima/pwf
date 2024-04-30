@@ -38,6 +38,8 @@ export PWF_VIDEO_FIND_PATTERN='( -iname *.mp4 -o -iname *.mpeg? -o -iname *.mov 
 export PWF_AUDIO_FIND_PATTERN='( -iname *.wav -o -name *.mp3 )'
 export PWF_JPG_FIND_PATTERN='( -iname *.jpg -o -iname *.jpeg )'
 
+export PwF_RAW_GLOB='*.NEF'
+
 export PWF_ALLOWED_CHARACTERS='[:alnum:]äöüÄÖÜé~._-'
 
 [[ "$PWF_HOME" =~ ^[//$PWF_ALLOWED_CHARACTERS]*$ ]] || \
@@ -60,6 +62,17 @@ _fzf_compgen_path() {
 _fzf_compgen_dir() {
     $FZF_ALT_C_COMMAND
 }
+
+_pwf_err_exit() {
+    >&2 echo "ERROR: $1"
+    exit 1
+}
+export -f _pwf_err_exit
+
+_pwf_is_event_dir() {
+    [[ $(dirname "$1") =~ [0-9]{4} ]] && return 0 || return 1
+}
+export -f _pwf_is_event_dir
 
 # Enable fuzzy completion for pwf commands
 _fzf_setup_completion dir pwf-check

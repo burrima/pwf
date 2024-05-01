@@ -20,6 +20,8 @@
 # SOFTWARE.
 #
 
+shopt -s nullglob  # no error when glob has no match
+shopt -s globstar  # recursive by default
 set -e
 
 function print_help {
@@ -55,40 +57,43 @@ done
 # make up $DIR variable:
 DIR=${@:$OPTIND:1}
 [[ ! "$DIR" ]] && DIR="."
-[[ -e "$DIR" ]] || (>&2 echo "ERROR: \"$DIR\" does not exist!" && exit 1)
-
-raws=$(find "$DIR" -type f -a $PWF_RAW_FIND_PATTERN)
-jpgs=$(find "$DIR" -type f -a $PWF_JPG_FIND_PATTERN)
-videos=$(find "$DIR" -type f -a $PWF_VIDEO_FIND_PATTERN)
-audios=$(find "$DIR" -type f -a $PWF_AUDIO_FIND_PATTERN)
+[[ -e "$DIR" ]] || _pwf_err_exit "\"$DIR\" does not exist!"
 
 total_raw_size_b=0
-for r in $raws; do
-  size=$(stat --printf="%s" $r)
+n_raws=0
+for r in "$DIR"/**/*.{NEF,NRW,CR2}; do
+  size=$(stat --printf="%s" "$r")
   total_raw_size_b=$(( total_raw_size_b + size ))
+  n_raws=$(( n_raws + 1 ))
 done
 
 total_jpg_size_b=0
-for r in $jpgs; do
-  size=$(stat --printf="%s" $r)
+n_jpgs=0
+for r in "$DIR"/**/*.{jpg,JPG,jpeg,JPEG}; do
+  size=$(stat --printf="%s" "$r")
   total_jpg_size_b=$(( total_jpg_size_b + size ))
+  n_jpgs=$(( n_jpgs + 1 ))
 done
 
 total_video_size_b=0
-for r in $videos; do
-  size=$(stat --printf="%s" $r)
+n_videos=0
+for r in "$DIR"/**/*.{mp4,mpeg,mov,MP4,MPEG,MOV}; do
+  size=$(stat --printf="%s" "$r")
   total_video_size_b=$(( total_video_size_b + size ))
+  n_videos=$(( n_videos + 1 ))
 done
 
 total_audio_size_b=0
-for r in $audios; do
-  size=$(stat --printf="%s" $r)
+n_audios=0
+for r in "$DIR"/**/*.{wav,WAV,mp3,MP3}; do
+  size=$(stat --printf="%s" "$r")
   total_audio_size_b=$(( total_audio_size_b + size ))
+  n_audios=$(( n_audios + 1 ))
 done
 
 echo "Folder:      $(cd "$DIR" && pwd)"
-echo "RAW images:  $(echo -n "$raws" | wc -l) ($(echo -n $total_raw_size_b | numfmt --to=iec ))"
-echo "JPG images:  $(echo -n "$jpgs" | wc -l) ($(echo -n $total_jpg_size_b | numfmt --to=iec ))"
-echo "Videos:      $(echo -n "$videos" | wc -l) ($(echo -n $total_video_size_b | numfmt --to=iec ))"
-echo "Audio files: $(echo -n "$audios" | wc -l) ($(echo -n $total_audio_size_b | numfmt --to=iec ))"
+echo "RAW images:  $(echo -n "$n_raws") ($(echo -n $total_raw_size_b | numfmt --to=iec ))"
+echo "JPG images:  $(echo -n "$n_jpgs") ($(echo -n $total_jpg_size_b | numfmt --to=iec ))"
+echo "Videos:      $(echo -n "$n_videos") ($(echo -n $total_video_size_b | numfmt --to=iec ))"
+echo "Audio files: $(echo -n "$n_audios") ($(echo -n $total_audio_size_b | numfmt --to=iec ))"
 

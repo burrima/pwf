@@ -164,7 +164,7 @@ done
 check_names ()
 {
     local found_any=false
-    for e in "$DIR"/**/*; do
+    for e in "$DIR" "$DIR"/**/*; do
         name=$(basename "$e")
         [[ "$name" =~ [^$PWF_ALLOWED_CHARACTERS] ]] && \
             echo "Illegal: $e" && found_any=true
@@ -184,7 +184,7 @@ fix_names ()
         rename_opt="-n"
     fi
 
-    for e in "$DIR"/**/*; do
+    for e in "$DIR" "$DIR"/**/*; do
         name=$(basename "$e")
         [[ "$name" =~ [^$PWF_ALLOWED_CHARACTERS] ]] && \
             # TODO: get rid of rename dependency!
@@ -224,7 +224,7 @@ check_protection ()
 {
     local found_any=false
 
-    for e in "$DIR"/**/*; do
+    for e in "$DIR" "$DIR"/**/*; do
         [[ -f "$e" || -d "$e" ]] || continue  # ignore links
         local hex_flags=0x$(stat -c%a "$e")
         if [[ $(( hex_flags & 0x222 )) != 0 ]]; then
@@ -244,7 +244,7 @@ check_raw_derivatives ()
     local found_any=false
 
     # for each raw file, search any file with same name but different ending
-    for r in "$DIR"/$PwF_RAW_GLOB; do
+    for r in "$DIR"/**/*.{NEF,NRW,CR2}; do
         local base=$(basename "$r")  # cut path away
         base=${base%.*}  # cut file ending away
 

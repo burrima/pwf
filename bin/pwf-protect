@@ -20,6 +20,8 @@
 # SOFTWARE.
 #
 
+shopt -s nullglob  # no error when glob has no match
+shopt -s globstar  # recursive by default
 set -e
 echo "pwf-protect: ENTRY"
 
@@ -59,7 +61,7 @@ INFO
 EOF
 }
 
-IGNORE_LIST=nop
+IGNORE_LIST=""
 OPERATION=protect
 FORCED=false
 YEAR=
@@ -79,9 +81,9 @@ done
 
 # make up $DIR variable:
 DIR=${@:$OPTIND:1}
-[[ "$YEAR" != "" ]] && DIR="$PWF_HOME/1_original/$YEAR"
+[[ $YEAR ]] && DIR="$PWF_HOME/1_original/$YEAR"
 [[ ! "$DIR" ]] && DIR="."
-[[ -e "$DIR" ]] || (>&2 echo "ERROR: \"$DIR\" does not exist!" && exit 1)
+[[ -e "$DIR" ]] || _pwf_err_exit "\"$DIR\" does not exist!"
 
 # perform checks first
 if [[ "$OPERATION" == "protect" ]] && [[ "$FORCED" == "false" ]]; then
@@ -90,43 +92,48 @@ fi
 
 protect_folder ()
 {
-    local parent=$(dirname $DIR)
-    local dirname=$(basename $DIR)
+    local parent=$(dirname "$DIR")
+    local dirname=$(basename "$DIR")
 
-    cd $parent
+    cd "$parent"
 
     local md5_file="$dirname.md5"
-    if [ -e "$md5_file" ]; then
-      echo "MD5 file exists, checking existing checksums..."
-      md5sum -c --quiet $md5_file
+    if [[ -e "$md5_file" ]]; then
+        echo "MD5 file exists, checking existing checksums..."
+        md5sum -c --quiet "$md5_file"
 
-      if [ $? -ne 0 ]; then
-        >&2 echo ""
-        >&2 echo "############### ERROR ###############"
-        >&2 echo ""
-        >&2 echo "Checksum calculation failed! There are unexpected changes!"
-        >&2 echo "Please update the MD5 checksums file first - then re-run this script"
-        >&2 echo "If you have not changed the listed file(s), consider restoring them from backup."
-        exit 1
-      fi
-
-      echo "Add new files to the checksums file..."
-      for f in $(find $dirname -type f); do
-        grep $f $md5_file > /dev/null
         if [ $? -ne 0 ]; then
-          echo $f
-          md5sum -b $f >> $md5_file
+            >&2 echo ""
+            >&2 echo "############### ERROR ###############"
+            >&2 echo ""
+            >&2 echo "Checksum calculation failed! There are unexpected changes!"
+            >&2 echo "Please update the MD5 checksums file first - then re-run this script"
+            >&2 echo "If you have not changed the listed file(s), consider restoring them from backup."
+            exit 1
         fi
-      done
+
+        echo "Add new files to the checksums file..."
+        for f in "$dirname"/**/*; do
+            [[ -f "$f" ]] || continue
+
+            grep "$f" "$md5_file" > /dev/null
+            if [[ "$?" != 0 ]]; then
+                echo "$f"
+                md5sum -b "$f" >> "$md5_file"
+            fi
+        done
 
     else
-      echo "Calculating checksums..."
-      find $dirname -type f -exec md5sum -b {} + > $md5_file
+        echo "Calculating checksums..."
+        touch "$md5_file"
+        for f in "$dirname"/**/*; do
+            md5sum -b "$f" >> "$md5_file"
+        done
     fi
 
     echo "Setting write locks..."
-    chmod -R a-w $dirname
-    chmod a-w $md5_file
+    chmod -R a-w "$dirname"
+    chmod a-w "$md5_file"
 
     cd - > /dev/null
     return 0
@@ -134,18 +141,18 @@ protect_folder ()
 
 unprotect_folder ()
 {
-    local parent=$(dirname $DIR)
-    local dirname=$(basename $DIR)
+    local parent=$(dirname "$DIR")
+    local dirname=$(basename "$DIR")
 
-    cd $parent
+    cd "$parent"
 
     md5_file="$dirname.md5"
-    [[ -e "$md5_file" ]] && chmod u+w,g+w $md5_file
+    [[ -e "$md5_file" ]] && chmod u+w,g+w "$md5_file"
 
-    if [ "$UNPROTECT_ALL" = "true" ]; then
-      chmod -R u+w,g+w $DIR
+    if [[ "$UNPROTECT_ALL" == true ]]; then
+        chmod -R u+w,g+w "$DIR"
     else
-      find $DIR -type d -exec chmod u+w,g+w {} +
+        find "$DIR" -type d -exec chmod u+w,g+w {} +
     fi
 
     cd - > /dev/null
@@ -158,7 +165,7 @@ if [[ "$OPERATION" == "protect" ]]; then
         protect_folder
     else
         echo "Protect file $DIR ..."
-        chmod a-w $DIR
+        chmod a-w "$DIR"
     fi
 else
     if [[ -d "$DIR" ]]; then
@@ -166,7 +173,7 @@ else
         unprotect_folder
     else
         echo "Unprotect file $DIR ..."
-        chmod a+w $DIR
+        chmod u+w,g+w "$DIR"
     fi
 fi
 

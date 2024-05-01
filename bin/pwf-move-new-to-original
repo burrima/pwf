@@ -21,6 +21,8 @@
 #
 
 set -e
+shopt -s nullglob  # no error when glob has no match
+shopt -s globstar  # recursive by default
 echo "pwf-move-new-to-original: ENTRY"
 
 print_help () {
@@ -35,6 +37,7 @@ OPTIONS
     All checks are enabled by default, but can be disabled individually:
     -i IL  see documentation of pwf-check
 
+    -y     year (if it cannot be auto-detected by PATH name)
     -n     nono, dry-run, only print actions, do nothing
 
 INFO
@@ -54,14 +57,16 @@ INFO
 EOF
 }
 
-IGNORE_LIST=nop
+IGNORE_LIST=""
 DRY_RUN=false
+YEAR=
 
-while getopts 'hi:n' OPTION; do
+while getopts 'hi:ny:' OPTION; do
     case "$OPTION" in
         h) print_help; exit 0 ;;
         i) IGNORE_LIST="$OPTARG" ;;
         n) DRY_RUN=true ;;
+        y) YEAR="$OPTARG" ;;
         *) print_help; exit 1 ;;
     esac
 done
@@ -69,31 +74,34 @@ done
 # make up $DIR variable:
 DIR=${@:$OPTIND:1}
 [[ ! "$DIR" ]] && DIR="."
-[[ -e "$DIR" ]] || (>&2 echo "ERROR: \"$DIR\" does not exist!" && exit 1)
+[[ -e "$DIR" ]] || _pwf_err_exit "\"$DIR\" does not exist!"
 
 # perform checks first
-folder=$(basename $DIR)
-if [[ ! "$folder" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}_ ]]; then
-    >&2 echo "ERROR: directory \"$folder\" does not start with a correct date!"
-    exit 1
-fi
-pwf-check -i $IGNORE_LIST "$DIR"
+folder=$(basename "$DIR")
+pwf-check -i "$IGNORE_LIST" "$DIR"
 
-YEAR=${folder:0:4}
+if [[ ! $YEAR ]]; then
+    [[ ! "$folder" =~ ^[0-9]{4}[-_] ]] && \
+        _pwf_err_exit "Year cannot be auto-detected from PATH!"
+    YEAR=${folder:0:4}
+else
+    [[ "$YEAR" =~ ^[0-9]{4}$ ]] || _pwf_err_exit "Illegal year format!"
+fi
+
 TARGET_DIR="$PWF_HOME/1_original/$YEAR/"
 
 echo "Ensure that target directory exists..."
-[[ $DRY_RUN == false ]] && mkdir -p "$TARGET_DIR"
+[[ "$DRY_RUN" == false ]] && mkdir -p "$TARGET_DIR"
 
 echo "Un-protecting target directory..."
-[[ $DRY_RUN == false ]] && pwf-protect -u -y $YEAR
+[[ "$DRY_RUN" == false ]] && pwf-protect -u -y "$YEAR"
 
 echo "Moving $DIR to $TARGET_DIR ..."
-[[ $DRY_RUN == false ]] && mv "$DIR" "$TARGET_DIR"
+[[ "$DRY_RUN" == false ]] && mv "$DIR" "$TARGET_DIR"
 
 echo "Protecting target directory..."
-[[ $DRY_RUN == false ]] && pwf-protect -f -y $YEAR
+[[ "$DRY_RUN" == false ]] && pwf-protect -f -y "$YEAR"
 
-[[ $DRY_RUN == true ]] && echo "NOTHING DONE, DRY-RUN!" && exit 0
+[[ "$DRY_RUN" == true ]] && echo "NOTHING DONE, DRY-RUN!" && exit 0
 
 echo "pwf-move-new-to-original: OK"

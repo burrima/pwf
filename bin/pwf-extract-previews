@@ -20,8 +20,8 @@
 # SOFTWARE.
 #
 
-set -e
-shopt -s nullglob
+set -e  # exit on any error
+shopt -s nullglob  # no error when glob has no match
 echo "pwf-extract-previews: ENTRY"
 
 print_help () {
@@ -119,7 +119,7 @@ for f in "$DIR"/**/*.{NEF,NRW,CR2}; do
 done
 
 # JPG files...
-for f in "$DIR"/**/*.{jpg,jpeg,JPG,JPEG}; do
+for f in "$DIR"/**/*.{jpg,JPG,jpeg,JPEG}; do
     # NOTE: jpegs have usually no preview embedded, so we just create a 
     # resized version of the originals
  

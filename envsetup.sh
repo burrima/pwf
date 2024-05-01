@@ -44,8 +44,9 @@ export PWF_JPG_FIND_PATTERN='( -iname *.jpg -o -iname *.jpeg )'
 
 export PWF_RAW_REGEX='^.*\.(NEF|NRW|CR2)*$'  # can be used e.g. with [[ =~ ]]
 
-export PwF_RAW_GLOB="**/*.NEF **/*.NRW **/*.CR2"
-export PwF_JPG_GLOB="**/*.jpg **/*.JPG **/*.jpeg **/*.JPEG"
+# TODO: how to define these to work same as "$DIR"/**/*.{NEF,NRW,CR2} ??
+# export PwF_RAW_GLOB="**/*.NEF **/*.NRW **/*.CR2"
+# export PwF_JPG_GLOB="**/*.jpg **/*.JPG **/*.jpeg **/*.JPEG"
 
 export PWF_ALLOWED_CHARACTERS='[:alnum:]äöüÄÖÜé~._-'
 

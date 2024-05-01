@@ -33,12 +33,19 @@ export PATH="$(pwd)/bin/:$PATH"
 # define global variables for pwf scripts
 export PWF_HOME="$HOME/pictures/own_photos/"
 
+# obsolete!!
 export PWF_RAW_FIND_PATTERN='( -name *.NEF -o -name *.NRW -o -name *.CR2 )'
+# obsolete!!
 export PWF_VIDEO_FIND_PATTERN='( -iname *.mp4 -o -iname *.mpeg? -o -iname *.mov )'
+# obsolete!!
 export PWF_AUDIO_FIND_PATTERN='( -iname *.wav -o -name *.mp3 )'
+# obsolete!!
 export PWF_JPG_FIND_PATTERN='( -iname *.jpg -o -iname *.jpeg )'
 
-export PwF_RAW_GLOB='*.NEF'
+export PWF_RAW_REGEX='^.*\.(NEF|NRW|CR2)*$'  # can be used e.g. with [[ =~ ]]
+
+export PwF_RAW_GLOB="**/*.NEF **/*.NRW **/*.CR2"
+export PwF_JPG_GLOB="**/*.jpg **/*.JPG **/*.jpeg **/*.JPEG"
 
 export PWF_ALLOWED_CHARACTERS='[:alnum:]äöüÄÖÜé~._-'
 

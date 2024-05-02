@@ -21,6 +21,8 @@
 #
 
 set -e
+shopt -s nullglob  # no error when glob has no match
+shopt -s globstar  # recursive by default
 echo "pwf-rename-by-date: ENTRY"
 
 function print_help {
@@ -76,10 +78,10 @@ done
 # make up $DIR variable:
 DIR=${@:$OPTIND:1}
 [[ ! "$DIR" ]] && DIR=$(pwd)
-[[ -e "$DIR" ]] || (>&2 echo "ERROR: \"$DIR\" does not exist!" && exit 1)
+[[ -e "$DIR" ]] || _pwf_err_exit "\"$DIR\" does not exist!"
 
 # auto-find correction script:
-if [[ $UNDO == false ]] && [[ $AUTO_FIND == true ]]; then
+if [[ "$UNDO" == false && "$AUTO_FIND" == true ]]; then
     echo "Trying to auto-find \"get_date.sh\""...
     search_dir="$DIR"
     while true; do
@@ -94,12 +96,10 @@ if [[ $UNDO == false ]] && [[ $AUTO_FIND == true ]]; then
 fi
 
 # perform checks:
-if [[ $UNDO == false ]] && [[ $CORR_SCRIPT ]]; then
+if [[ "$UNDO" == false && "$CORR_SCRIPT" ]]; then
     echo "Using correction script: $CORR_SCRIPT"
-    if [[ ! -e "$CORR_SCRIPT" ]]; then
-       >&2 echo "ERROR: correction script \"$CORR_SCRIPT\" not found!"
-       exit 1
-    fi
+    [[ -e "$CORR_SCRIPT" ]] || \
+        _pwf_err_exit "correction script \"$CORR_SCRIPT\" not found!"
 else
     echo "Using no correction script"
 fi
@@ -112,19 +112,20 @@ if [[ -d "$DIR" ]]; then
 else
     filename=$(basename "$DIR")
     foldername=$(dirname "$DIR")
-    foldername=$(cd $foldername && pwd)  # absolute path
+    foldername=$(cd "$foldername" && pwd)  # absolute path
 fi
 
-if [[ $UNDO == false ]]; then
+if [[ "$UNDO" == false ]]; then
     echo "Add date prefix to files..."
 
     for f in $foldername/$filename; do
         filename=$(basename "$f")  # now concrete file
-        echo $f
-        if [[ $CORR_SCRIPT ]]; then
+        [[ "$filename" =~ ^[0-9]{8}-[0-9]{6}- ]] && continue
+        echo "$f"
+        if [[ "$CORR_SCRIPT" ]]; then
             prefix=$($CORR_SCRIPT "$f")
         else
-            date=$(exiv2 -Pv -g Exif.Photo.DateTimeOriginal $f)
+            date=$(exiv2 -Pv -g Exif.Photo.DateTimeOriginal "$f")
             read Y M D h m s <<< ${date//:/ }
             prefix="$Y$M$D-$h$m$s"
         fi
@@ -132,7 +133,12 @@ if [[ $UNDO == false ]]; then
     done
 else  # UNDO
     echo "Remove date prefix from files..."
-    (cd "$foldername" && rename 's/[0-9-]{16}//' $filename)
+    for f in $foldername/$filename; do
+        filename=$(basename "$f")  # now concrete file
+        [[ "$filename" =~ ^[0-9]{8}-[0-9]{6}- ]] || continue
+        echo "$f"
+        mv "$f" "$foldername/${filename#????????-??????-}"
+    done
 fi
 
 echo "pwf-rename-by-date: OK"

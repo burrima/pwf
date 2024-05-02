@@ -177,18 +177,18 @@ check_names ()
 fix_names ()
 {
     local replace_pattern='s/ /_/g;s/\&/und/g;s/\-_//g'
-    local rename_opt=
 
-    if [[ "$DRY_RUN" == true ]]; then
-        echo "Dry-run: The following renaming would be done:"
-        rename_opt="-n"
-    fi
+    [[ "$DRY_RUN" == true ]] && echo "Dry-run: would do the following:"
 
     for e in "$DIR" "$DIR"/**/*; do
         name=$(basename "$e")
-        [[ "$name" =~ [^$PWF_ALLOWED_CHARACTERS] ]] && \
-            # TODO: get rid of rename dependency!
-            rename $rename_opt "$replace_pattern" "$e"
+        if [[ "$name" =~ [^$PWF_ALLOWED_CHARACTERS] ]]; then
+            folder=$(dirname "$e")
+            newname=$(echo "$name" | sed -e "$replace_pattern")
+            [[ "$DRY_RUN" == true ]] && \
+                echo "mv $e $folder/$newname" || \
+                mv "$e" "$folder/$newname"
+        fi
     done
 
     # update working $DIR as well:

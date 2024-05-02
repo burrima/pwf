@@ -21,6 +21,8 @@
 #
 
 set -e  # exit on error
+shopt -s nullglob  # no error when glob has no match
+shopt -s globstar  # recursive by default
 echo "pwf-cleanup: ENTRY"
 
 function print_help {
@@ -31,6 +33,8 @@ USAGE
 OPTIONS
     -h     show this help
     -u     undo cleanup - by latest found tar file
+
+TODO: add option to cleanup without crating tar
 
 INFO
     Cleanup given folder according to following list:
@@ -65,27 +69,23 @@ done
 # make up $DIR variable:
 DIR=${@:$OPTIND:1}
 [[ ! "$DIR" ]] && DIR=$(pwd)
-[[ -e "$DIR" ]] || (>&2 echo "ERROR: \"$DIR\" does not exist!" && exit 1)
-[[ -d "$DIR" ]] || (>&2 echo "ERROR: PATH must be a directory!" && exit 1)
+[[ -e "$DIR" ]] || _pwf_err_exit "\"$DIR\" does not exist!"
+[[ -d "$DIR" ]] || _pwf_err_exit "PATH must be a directory!"
 
 pwf-check -o name "$DIR" > /dev/null
 
 if [[ "$DIR" == *"1_original"* ]]; then
-    >&2 echo "ERROR: Nothing to cleanup in 1_original folder tree!"
-    exit 1
-
+    _pwf_err_exit "Nothing to cleanup in 1_original folder tree!"
 elif [[ "$DIR" == *"2_lab"* ]]; then
-    if [[ ! "$(basename $(dirname "$DIR"))" =~ ^[0-9]{4}$ ]]; then
-        >&2 echo "ERROR: PATH must be an event directory!"
-        exit 1
-    fi
+    [[ ! "$(basename $(dirname "$DIR"))" =~ ^[0-9]{4}$ ]] && \
+        _pwf_err_exit "PATH must be an event directory!"
 
-    if [[ $UNDO == false ]]; then
+    if [[ "$UNDO" == false ]]; then
         ls -1 "$DIR/1_preview/" > "$DIR/1_preview_files.txt"
         archive="lab-$(date +%Y%m%d-%H%M%S).tar.bz2"
         echo "Creating tar archive: $archive"
-        (cd $DIR && \
-            tar cjf $archive 1_preview_files.txt 2_original_* && \
+        (cd "$DIR" && \
+            tar cjf "$archive" 1_preview_files.txt 2_original_* && \
             rm -r 1_preview &&
             rm 1_preview_files.txt &&
             rm -r 2_original_*)
@@ -93,21 +93,14 @@ elif [[ "$DIR" == *"2_lab"* ]]; then
         #
         # TODO: make this whole undo code more robust!
         #
-        TAR_FILE=$(find "$DIR" -maxdepth 1 -name "lab-*.tar.bz2" | sort | tail -1)
-        if [[ ! -e "$TAR_FILE" ]]; then
-            >&2 echo "ERROR: no tar file found!"
-            exit 1
-        fi
+        TAR_FILE=$(ls -1 "$DIR"/lab-*.tar.bz2 | sort | tail -1)
+        [[ -e "$TAR_FILE" ]] || _pwf_err_exit "no tar file found!"
 
         echo "Extracting $TAR_FILE..."
-        (cd $DIR && tar xjf $(basename $TAR_FILE))
+        (cd "$DIR" && tar xjf $(basename "$TAR_FILE"))
 
         echo "Restoring preview files..."
-        ORIG_DIR=$(echo "$DIR" | sed -e s/2_lab/1_original/)
-        pwf-prepare-lab "$ORIG_DIR"
-        for f in $(find "$DIR/1_preview/" -maxdepth 1 -type f); do
-            grep -q "$(basename $f)" "$DIR/1_preview_files.txt" || rm $f
-        done
+        pwf-extract-previews -l -f "$DIR/1_preview_files.txt" "${DIR/2_lab/1_original}"
     fi
 fi
 

@@ -32,8 +32,9 @@ USAGE
 OPTIONS
     -h     show this help
     -o     directory to put preview files into (default is given PATH)
-    -l     put previews into a new Lab folder
+    -l     put previews into a Lab folder (into 1_preview/ subfolder)
     -r     recursively seach through subdirectories of given PATH
+    -f     provide filter-file to only generate previews of listed files
 
 INFO
     Creates small preview images out of RAW and JPG files. For RAW files, the
@@ -58,13 +59,15 @@ EOF
 OUT_DIR=
 LAB=false
 RECURSIVE=false
+FILTER_FILE=
 
-while getopts 'ho:lr' OPTION; do
+while getopts 'ho:lrf:' OPTION; do
 	case "$OPTION" in
 		h) print_help; exit 0 ;;
         o) OUT_DIR="$OPTARG" ;;
         l) LAB=true && RECURSIVE=true ;;
         r) RECURSIVE=true ;;
+        f) FILTER_FILE="$OPTARG" ;;
 		*) print_help; exit 1 ;;
 	esac
 done
@@ -77,7 +80,9 @@ DIR=${@:$OPTIND:1}
 # perform precondition checks:
 [[ "$OUT_DIR" && "$LAB" == true ]] && \
     _pwf_err_exit "options -o and -l cannot be combined!"
-# pwf-check -o name "$DIR" > /dev/null || exit 1
+pwf-check -o name "$DIR" > /dev/null || exit 1
+[[ "$FILTER_FILE" && ! -f "$FILTER_FILE" ]] && \
+    _pwf_err_exit "provided filter file not found!"
 
 # define output directory:
 if [[ ! "$OUT_DIR" ]]; then
@@ -99,6 +104,7 @@ fi
 # RAW files...
 for f in "$DIR"/**/*.{NEF,NRW,CR2}; do
     f_name=$(basename "$f")
+    [[ "$FILTER_FILE" != "" ]] && grep -q "$f_name" "$FILTER_FILE" || continue
     tmp_file="/tmp/${f_name%.*}-preview3.jpg"
     preview_file="$OUT_DIR/$f_name-preview.jpg"
 
@@ -124,6 +130,7 @@ for f in "$DIR"/**/*.{jpg,JPG,jpeg,JPEG}; do
     # resized version of the originals
  
     f_name=$(basename "$f")
+    [[ "$FILTER_FILE" != "" ]] && grep -q "$f_name" "$FILTER_FILE" || continue
     preview_file="$OUT_DIR/${f_name}-preview.jpg"
 
     # ignore already existing previews

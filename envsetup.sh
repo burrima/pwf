@@ -20,7 +20,7 @@
 #
 
 # check preconditions
-for tool in fzf rename exiv2 convert md5sum ffmpeg; do
+for tool in fzf exiv2 convert md5sum ffmpeg; do
     [[ $(type -P $tool) ]] || >&2 echo "ERROR: $tool not installed!"
 done
 
@@ -47,6 +47,7 @@ export PWF_RAW_REGEX='^.*\.(NEF|NRW|CR2)*$'  # can be used e.g. with [[ =~ ]]
 # TODO: how to define these to work same as "$DIR"/**/*.{NEF,NRW,CR2} ??
 # export PwF_RAW_GLOB="**/*.NEF **/*.NRW **/*.CR2"
 # export PwF_JPG_GLOB="**/*.jpg **/*.JPG **/*.jpeg **/*.JPEG"
+# export PWF_RAW_GLOBS="*.NEF *.NRW *.CR2"
 
 export PWF_ALLOWED_CHARACTERS='[:alnum:]äöüÄÖÜé~._-'
 

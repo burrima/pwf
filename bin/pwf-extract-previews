@@ -104,7 +104,9 @@ fi
 # RAW files...
 for f in "$DIR"/**/*.{NEF,NRW,CR2}; do
     f_name=$(basename "$f")
-    [[ "$FILTER_FILE" != "" ]] && grep -q "$f_name" "$FILTER_FILE" || continue
+    if [[ $FILTER_FILE ]]; then
+        grep -q "$f_name" "$FILTER_FILE" || continue
+    fi
     tmp_file="/tmp/${f_name%.*}-preview3.jpg"
     preview_file="$OUT_DIR/$f_name-preview.jpg"
 
@@ -130,7 +132,9 @@ for f in "$DIR"/**/*.{jpg,JPG,jpeg,JPEG}; do
     # resized version of the originals
  
     f_name=$(basename "$f")
-    [[ "$FILTER_FILE" != "" ]] && grep -q "$f_name" "$FILTER_FILE" || continue
+    if [[ $FILTER_FILE ]]; then
+        grep -q "$f_name" "$FILTER_FILE" || continue
+    fi
     preview_file="$OUT_DIR/${f_name}-preview.jpg"
 
     # ignore already existing previews

@@ -20,36 +20,30 @@
 # SOFTWARE.
 #
 
-set -e
+set -e  # exit on any error
+shopt -s nullglob  # no error when glob has no match
 echo "pwf-link: ENTRY"
 
 function print_help {
 	cat <<'EOF'
 USAGE
     pwf-link [OPTION...] SOURCE TARGET
+    pwf-link -l [OPTION...] SOURCE
 
 OPTIONS
     -a     link all source files to lab, independent of preview existance
     -h     show this help
 
 INFO
-    Prepares the lab folder for a given event path inside the 1_original/ folder
-    structure. If an invalid path is given, the script stops with an error.
+    Links SOURCE file(s) into the TARGET directory.
 
-    The first time this script is called, it creates a new lab dir and puts only
-    the preview files into 1_previews/ (with date prefixes). This allows the
-    user to do filtering (delete unneeded previews) and to fix the dates (create
-    a get_date.sh script in the lab event folder).
+    If option -l is provided then the raw, jpg, audio and video files of the
+    given SOURCE event folder (in 1_original/ tree) are linked into the TARGET
+    event folder (in 2_lab/ tree) to corresponding 2_original_ sub-folders.
+    Files are then only linked if the 1_preview/ folder contains corresponding
+    preview file (use option -a to omit this feature).
 
-    On the second call of this script, if the lab event dir is already existing,
-    the raw and jpg files are linked, based on the existance of the
-    corresponding preview file.
-
-    This two-stage behavior can be broken into 1-step by setting -a option on
-    the first call. It is also possible to override the preview-based filtering
-    with the same -a option on the second call.
-
-    A PATH can be specified either by by normal means of bash or by using the
+    A path can be specified either by by normal means of bash or by using the
     FZF tool. Write 
 
         pwf-prepare-lab **<tab>
@@ -61,101 +55,61 @@ INFO
 EOF
 }
 
+LAB=false
 LINK_ALL=false
 
-while getopts 'ha' OPTION; do
+while getopts 'hal' OPTION; do
     case "$OPTION" in
         h) print_help; exit 0 ;;
         a) LINK_ALL=true ;;
+        l) LAB=true ;;
         *) print_help; exit 1 ;;
     esac
 done
 
-# make up $DIR variable:
-DIR=${@:$OPTIND:1}
-[[ ! "$DIR" ]] && DIR="."
-[[ -e "$DIR" ]] || (>&2 echo "ERROR: \"$DIR\" does not exist!" && exit 1)
+# make up source and target variables:
+SOURCE=${@:$OPTIND:1}
+TARGET=${@:$OPTIND+1:2}
+[[ -e "$SOURCE" ]] || _pwf_err_exit "source \"$SOURCE\" does not exist!"
+[[ "$LAB" == true && "$TARGET" ]] && _pwf_err_exit "no TARGET allowed with -l"
 
-#!/bin/bash
-# Copyright 2024 Martin Burri
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-#
+# perform precondition checks:
+pwf-check -o name "$SOURCE" > /dev/null || exit 1
 
-set -e
-echo "pwf-prepare-lab: ENTRY"
+# special feature: link originals to lab folder:
+if [[ "$LAB" == true ]]; then
+    _pwf_is_event_dir "$SOURCE" || \
+        _pwf_err_exit "SOURCE must be an event dir in 1_original/ tree!"
+    TARGET="${SOURCE/1_original/2_lab}"
 
-function print_help {
-	cat <<'EOF'
-USAGE
-    pwf-prepare-lab [OPTION...] [PATH_TO_ORIG]
+    echo "Link originals to lab..."
+    for t in raw jpg; do
+        [[ -e "$SOURCE/$t" ]] || continue
+        if [[ -e "$TARGET/2_original_$t" ]]; then
+            echo "2_original_$t exists, skipping it"
+            continue
+        fi
+        for f in "$SOURCE"/$t/*; do
+            trunc=$(basename $f)
+            trunc=${trunc%.*}
+            if [[ "$LINK_ALL" == false && ! $(find "$TARGET/1_preview/" -name "*$trunc*") ]]; then
+                echo "Ignore $(basename $f) - no preview existing"
+                continue
+            fi
+            mkdir -p "$TARGET/2_original_$t"
+            ln -s -r "$f" "$TARGET/2_original_$t/"
+        done
+    done
+    for t in video audio; do
+        [[ -e "$SOURCE/$t" ]] || continue
+        if [[ -e "$TARGET/2_original_$t" ]]; then
+            echo "2_original_$t exists, skipping it"
+            continue
+        fi
+        for f in "$SOURCE"/$t/*; do
+            mkdir -p "$TARGET/2_original_$t"
+            ln -s -r "$f" "$TARGET/2_original_$t/"
+        done
+    done
 
-OPTIONS
-    -a     link all source files to lab, independent of preview existance
-    -h     show this help
-
-INFO
-    Prepares the lab folder for a given event path inside the 1_original/ folder
-    structure. If an invalid path is given, the script stops with an error.
-
-    The first time this script is called, it creates a new lab dir and puts only
-    the preview files into 1_previews/ (with date prefixes). This allows the
-    user to do filtering (delete unneeded previews) and to fix the dates (create
-    a get_date.sh script in the lab event folder).
-
-    On the second call of this script, if the lab event dir is already existing,
-    the raw and jpg files are linked, based on the existance of the
-    corresponding preview file.
-
-    This two-stage behavior can be broken into 1-step by setting -a option on
-    the first call. It is also possible to override the preview-based filtering
-    with the same -a option on the second call.
-
-    A PATH can be specified either by by normal means of bash or by using the
-    FZF tool. Write 
-
-        pwf-prepare-lab **<tab>
-
-    to bring the FZF tool to front where you can select the desired path much
-    faster. Paths are automatically bound to the pwf folder structure, so the
-    check tool can be used from anywhere. If no PATH is specified, the current
-    directory will be taken.
-EOF
-}
-
-LINK_ALL=false
-
-while getopts 'ha' OPTION; do
-    case "$OPTION" in
-        h) print_help; exit 0 ;;
-        a) LINK_ALL=true ;;
-        *) print_help; exit 1 ;;
-    esac
-done
-
-# make up $DIR variable:
-DIR=${@:$OPTIND:1}
-[[ ! "$DIR" ]] && DIR="."
-[[ -e "$DIR" ]] || (>&2 echo "ERROR: \"$DIR\" does not exist!" && exit 1)
-
-
-
-
-
-echo "pwf-prepare-lab: OK"
+fi

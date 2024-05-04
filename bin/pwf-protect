@@ -87,7 +87,7 @@ DIR=${@:$OPTIND:1}
 
 # perform checks first
 if [[ "$OPERATION" == "protect" ]] && [[ "$FORCED" == "false" ]]; then
-    pwf-check -i "$IGNORE_LIST,cs,prot" "$DIR"
+    pwf-check -i "$IGNORE_LIST,prot" "$DIR"
 fi
 
 protect_folder ()
@@ -98,38 +98,16 @@ protect_folder ()
     cd "$parent"
 
     local md5_file="$dirname.md5"
-    if [[ -e "$md5_file" ]]; then
-        echo "MD5 file exists, checking existing checksums..."
-        md5sum -c --quiet "$md5_file"
 
-        if [ $? -ne 0 ]; then
-            >&2 echo ""
-            >&2 echo "############### ERROR ###############"
-            >&2 echo ""
-            >&2 echo "Checksum calculation failed! There are unexpected changes!"
-            >&2 echo "Please update the MD5 checksums file first - then re-run this script"
-            >&2 echo "If you have not changed the listed file(s), consider restoring them from backup."
-            exit 1
-        fi
+    echo "Calculating checksums of new files..."
+    touch "$md5_file"
+    for f in "$dirname"/**/*; do
+        [[ -f "$f" ]] || continue
 
-        echo "Add new files to the checksums file..."
-        for f in "$dirname"/**/*; do
-            [[ -f "$f" ]] || continue
-
-            grep "$f" "$md5_file" > /dev/null
-            if [[ "$?" != 0 ]]; then
-                echo "$f"
-                md5sum -b "$f" >> "$md5_file"
-            fi
-        done
-
-    else
-        echo "Calculating checksums..."
-        touch "$md5_file"
-        for f in "$dirname"/**/*; do
-            md5sum -b "$f" >> "$md5_file"
-        done
-    fi
+        grep -q "$f" "$md5_file" && continue
+        echo "$f"
+        md5sum -b "$f" >> "$md5_file"
+    done
 
     echo "Setting write locks..."
     chmod -R a-w "$dirname"

@@ -84,6 +84,8 @@ _pwf_is_event_dir() {
 export -f _pwf_is_event_dir
 
 # Enable fuzzy completion for pwf commands
+alias ll >/dev/null 2>&1 || alias ll="ls -alF"
+_fzf_setup_completion dir ll
 _fzf_setup_completion dir pwf-check
 _fzf_setup_completion path pwf-extract-previews
 _fzf_setup_completion dir pwf-move-new-to-original
@@ -94,4 +96,5 @@ _fzf_setup_completion path pwf-rename-by-date
 _fzf_setup_completion dir pwf-cleanup
 _fzf_setup_completion path pwf-downsize-image
 _fzf_setup_completion path pwf-downsize-video
+_fzf_setup_completion path pwf-link
 

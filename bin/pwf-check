@@ -37,10 +37,11 @@ OPTIONS
     -i IL  ignore check by ignore-list (IL) of comma-separated values:
            cs    ignore wrong checksums
            dup   ignore duplicates
+           miss  ignore missing files (compared to md5 checksum file)
            name  ignore name violations (not allowed!)
+           path  ingore path violations
            prot  ignore protection violations
            raw   ignore RAW derivatives
-           path  ingore path violations
     -o OL  check only the things listed (see -i for possible items)
 
     -f     auto-fix wrong names if possible
@@ -53,6 +54,8 @@ INFO
         * RAW derivatives (files other than RAW but with same name pattern)
         * file and folder protection (useful only for 1_original/ folders)
         * MD5 checksums (useful only for 1_original/ folders)
+        * Missing files (compared to MD5 checksum file) - not done when MD5
+          checking is enabled (is covered by MD5 checking)
         * file and folder structure (path)
     Checks can be disabled individually, see OPTIONS above.
     
@@ -89,6 +92,7 @@ IGNORE_LIST=
 ONLY_LIST=
 CHK_CHECKSUMS=true
 CHK_DUPLICATES=true
+CHK_MISSING=true
 CHK_NAMES=true
 CHK_PROTECTION=true
 CHK_RAW_DERIVATES=true
@@ -118,7 +122,7 @@ DIR=${@:$OPTIND:1}
 
 if [[ $IGNORE_LIST ]]; then
     [[ "$IGNORE_LIST" == *"name"* ]] && \
-        _pwf_err_exit "Ignoring name violations is not allowed!"
+        echo "Ignoring name violations is strongly discouraged!"
     [[ "$DIR" == *"0_new"* && "$IGNORE_LIST" == *"dup"* ]] && \
         _pwf_err_exit "Ignoring duplicate violations is not allowed!"
     [[ "$DIR" == *"0_new"* && "$IGNORE_LIST" == *"path"* ]] && \
@@ -133,18 +137,20 @@ fi
 if [[ $ONLY_LIST ]]; then
     CHK_CHECKSUMS=false
     CHK_DUPLICATES=false
+    CHK_MISSING=false
     CHK_NAMES=true  # this is always enabled!
+    CHK_PATHS=false
     CHK_PROTECTION=false
     CHK_RAW_DERIVATES=false
-    CHK_PATHS=false
 
     for what in ${ONLY_LIST//,/ }; do
         if [[ "$what" == "cs" ]]; then CHK_CHECKSUMS=true
         elif [[ "$what" == "dup" ]]; then CHK_DUPLICATES=true
+        elif [[ "$what" == "miss" ]]; then CHK_MISSING=true
         elif [[ "$what" == "name" ]]; then CHK_NAMES=true
+        elif [[ "$what" == "path" ]]; then CHK_PATHS=true
         elif [[ "$what" == "prot" ]]; then CHK_PROTECTION=true
         elif [[ "$what" == "raw" ]]; then CHK_RAW_DERIVATES=true
-        elif [[ "$what" == "path" ]]; then CHK_PATHS=true
         else _pwf_err_exit "Option -o does not know $what"
         fi
     done
@@ -154,9 +160,11 @@ fi
 for what in ${IGNORE_LIST//,/ }; do
     if [[ "$what" == "cs" ]]; then CHK_CHECKSUMS=false
     elif [[ "$what" == "dup" ]]; then CHK_DUPLICATES=false
+    elif [[ "$what" == "miss" ]]; then CHK_MISSING=false
+    elif [[ "$what" == "name" ]]; then CHK_NAMES=false
+    elif [[ "$what" == "path" ]]; then CHK_PATHS=false
     elif [[ "$what" == "prot" ]]; then CHK_PROTECTION=false
     elif [[ "$what" == "raw" ]]; then CHK_RAW_DERIVATES=false
-    elif [[ "$what" == "path" ]]; then CHK_PATHS=false
     else _pwf_err_exit "Option -i does not know $what"
     fi
 done
@@ -305,6 +313,49 @@ check_paths ()
     return 0
 }
 
+check_checksums ()
+{
+    local parent=$(dirname "$DIR")
+    local dirname=$(basename "$DIR")
+
+    cd "$parent"
+
+    local md5_file="$dirname.md5"
+
+    [[ -e "$md5_file" ]] || _pwf_err_exit "MD5 file not found!"
+
+    set +e
+    md5sum -c --quiet "$md5_file" || _pwf_err_exit "MD5 check failed!"
+    set -e
+
+    cd - > /dev/null
+    return 0
+}
+
+check_missing ()
+{
+    local parent=$(dirname "$DIR")
+    local dirname=$(basename "$DIR")
+    local found_any=false
+
+    cd "$parent"
+
+    local md5_file="$dirname.md5"
+
+    [[ -e "$md5_file" ]] || _pwf_err_exit "MD5 file not found!"
+
+    while IFS= read -r line; do
+        file=${line:34}
+        [[ !  -e "$file" ]] && echo "Missing file: $file" && found_any=true
+    done < "$md5_file"
+
+    cd - > /dev/null
+
+    [[ "$found_any" == true ]] && \
+        _pwf_err_exit "found missing files!"
+    return 0
+}
+
 #
 # check names
 #
@@ -361,5 +412,23 @@ if [[ "$CHK_PATHS" == true ]]; then
 else
     echo "WARNING: paths not checked!"
 fi
+
+#
+# Check checksums
+#
+if [[ "$CHK_CHECKSUMS" == true ]]; then
+    echo "Checking checksums and missing files..."
+    check_checksums
+else
+    if [[ "$CHK_MISSING" == true ]]; then
+        echo "WARNING: checksums not checked! But checking for missing files..."
+        check_missing
+    else
+        echo "WARNING: neither checksums nor missing files checked!"
+    fi
+fi
+
+# TODO: add checking of:
+#  - write-protection of files in 1_original tree
 
 echo "pwf-check: OK"

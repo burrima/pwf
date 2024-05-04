@@ -37,6 +37,7 @@ OPTIONS
     All checks are enabled by default, but can be disabled individually:
     -i IL  see documentation of pwf-check
 
+    -k     keep-unprotected, do not lock the destination year folder
     -y     year (if it cannot be auto-detected by PATH name)
     -n     nono, dry-run, only print actions, do nothing
 
@@ -57,16 +58,18 @@ INFO
 EOF
 }
 
-IGNORE_LIST=""
+IGNORE_LIST=
 DRY_RUN=false
 YEAR=
+KEEP_UNPROTECTED=false
 
-while getopts 'hi:ny:' OPTION; do
+while getopts 'hi:ny:k' OPTION; do
     case "$OPTION" in
         h) print_help; exit 0 ;;
         i) IGNORE_LIST="$OPTARG" ;;
         n) DRY_RUN=true ;;
         y) YEAR="$OPTARG" ;;
+        k) KEEP_UNPROTECTED=true ;;
         *) print_help; exit 1 ;;
     esac
 done
@@ -78,7 +81,7 @@ DIR=${@:$OPTIND:1}
 
 # perform checks first
 folder=$(basename "$DIR")
-pwf-check -i "$IGNORE_LIST" "$DIR"
+pwf-check -i "$IGNORE_LIST,prot,cs,miss" "$DIR"
 
 if [[ ! $YEAR ]]; then
     [[ ! "$folder" =~ ^[0-9]{4}[-_] ]] && \
@@ -100,7 +103,7 @@ echo "Moving $DIR to $TARGET_DIR ..."
 [[ "$DRY_RUN" == false ]] && mv "$DIR" "$TARGET_DIR"
 
 echo "Protecting target directory..."
-[[ "$DRY_RUN" == false ]] && pwf-protect -f -y "$YEAR"
+[[ "$DRY_RUN" == false && $KEEP_UNPROTECTED == false ]] && pwf-protect -f -y "$YEAR"
 
 [[ "$DRY_RUN" == true ]] && echo "NOTHING DONE, DRY-RUN!" && exit 0
 

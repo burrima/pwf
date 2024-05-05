@@ -61,7 +61,8 @@ DIR=${@:$OPTIND:1}
 
 total_raw_size_b=0
 n_raws=0
-for r in "$DIR"/**/*.{NEF,NRW,CR2}; do
+X=($PWF_RAW_EXTENSIONS) RAW_GLOBS=${X[@]/#/"$DIR/**/*."}
+for r in $RAW_GLOBS; do
   size=$(stat --printf="%s" "$r")
   total_raw_size_b=$(( total_raw_size_b + size ))
   n_raws=$(( n_raws + 1 ))
@@ -69,7 +70,8 @@ done
 
 total_jpg_size_b=0
 n_jpgs=0
-for r in "$DIR"/**/*.{jpg,JPG,jpeg,JPEG}; do
+X=($PWF_JPG_EXTENSIONS) JPG_GLOBS=${X[@]/#/"$DIR/**/*."}
+for r in $JPG_GLOBS; do
   size=$(stat --printf="%s" "$r")
   total_jpg_size_b=$(( total_jpg_size_b + size ))
   n_jpgs=$(( n_jpgs + 1 ))

@@ -29,10 +29,11 @@ print_help () {
 	cat <<'EOF'
 USAGE
     pwf-extract-previews [OPTION...] [SRC [DST_DIR]]
+    pwf-extract-previews [OPTION...] SRC @lab
 
 OPTIONS
     -h     show this help
-    -r     recursively seach through subdirectories of given PATH
+    -r     recursively seach through subdirectories of given SRC
     -f     provide filter-file to only generate previews of listed files
 
 INFO
@@ -40,19 +41,23 @@ INFO
     preview images are extracted from the exif info. For JPG files, a smaller
     version of the original is created.
 
-    The option -l can be used to prepare a Lab folder, given that the PATH is
-    pointing to an event folder in the 1_original/ structure.
+    SRC can be a file or a folder. Folders can be traversed recursively with the
+    option -r. A DST_DIR can be specified where to place the preview images. If
+    no destination is provided, the files will be placed where the script is
+    called from.
 
-    A PATH can be specified either by by normal means of bash or by using the
-    FZF tool. Write 
+    The option -f can be used to only create preview files if the source file
+    name is listed in the given filter file. This is used to restore cleaned-up
+    lab folders.
 
-        pwf-extract-previews **<tab>
+    DST_DIR can be set to "@lab" to cause special behavior: In this case, SRC
+    must point to an event folder in the 1_original/ tree. A preview of all JPG
+    and RAW photos will be put into the corresponding event folder in the
+    2_lab/ tree, into a subfolder 1_preview/ (implies option -r).
 
-    to bring the FZF tool to front where you can select the desired path much
-    faster. Paths are automatically bound to the pwf folder structure, so the
-    check tool can be used from anywhere. If no PATH is specified, the current
-    directory will be taken.
 EOF
+
+    _pwf_print_fzf_info
 }
 
 RECURSIVE=false
@@ -76,13 +81,13 @@ SRC=${@:$OPTIND:1}
 
 # make up $DSI_DIR variable:
 if [[ "$DST_DIR" == "" ]]; then
-    # if $SRC is a file, adapt:
-    [[ -d "$SRC" ]] && DST_DIR="$SRC" || DST_DIR=$(dirname "$SRC")
+    DST_DIR="$(pwd)/"
 elif [[ "$DST_DIR" == "@lab" ]]; then
     _pwf_is_event_dir "$SRC" || \
         _pwf_err_exit "SRC must be an event dir in 1_original/ tree!"
     DST_DIR="${SRC/1_original/2_lab}/1_preview"
     mkdir -p "$DST_DIR"
+    RECURSIVE=true
 fi
 [[ -d "$DST_DIR" ]] || _pwf_err_exit "output directory $DST_DIR does not exist!"
 
@@ -91,19 +96,19 @@ pwf-check -o name "$SRC" > /dev/null || exit 1
 [[ "$FILTER_FILE" && ! -f "$FILTER_FILE" ]] && \
     _pwf_err_exit "provided filter file not found!"
 
-[[ "$RECURSIVE" == true ]] && REC='**' || REC=''
-
-# RAW files...
-for f in "$SRC"/$REC/*.{NEF,NRW,CR2}; do
+# define helper functions:
+extract_raw_preview ()
+{
+    f="$1"
     f_name=$(basename "$f")
     if [[ $FILTER_FILE ]]; then
-        grep -q "$f_name" "$FILTER_FILE" || continue
+        grep -q "$f_name" "$FILTER_FILE" || return 0
     fi
     tmp_file="/tmp/${f_name%.*}-preview3.jpg"
     preview_file="$DST_DIR/$f_name-preview.jpg"
 
     # ignore already existing previews
-    [[ -f "$preview_file" ]] && continue
+    [[ -f "$preview_file" ]] && return 0
 
     echo "$f"
 
@@ -116,25 +121,41 @@ for f in "$SRC"/$REC/*.{NEF,NRW,CR2}; do
     exiv2 -M"set Exif.Photo.DateTimeOriginal $date" "$tmp_file"
 
     convert -filter Sinc -resize 'x1080>' -quality 85 "$tmp_file" "$preview_file"
-done
+    rm "$tmp_file"
+}
 
-# JPG files...
-for f in "$SRC"/$REC/*.{jpg,JPG,jpeg,JPEG}; do
+extract_jpg_preview ()
+{
+    f="$1"
     # NOTE: jpegs have usually no preview embedded, so we just create a 
     # resized version of the originals
  
     f_name=$(basename "$f")
     if [[ $FILTER_FILE ]]; then
-        grep -q "$f_name" "$FILTER_FILE" || continue
+        grep -q "$f_name" "$FILTER_FILE" || return 0
     fi
     preview_file="$DST_DIR/${f_name}-preview.jpg"
 
     # ignore already existing previews
-    [[ -f "$preview_file" ]] && continue
+    [[ -f "$preview_file" ]] && return 0
 
     echo "$f"
 
     convert -filter Sinc -resize 'x1080>' -quality 85 "$f" "$preview_file"
-done
+}
+
+# process images as required:
+if [[ -d "$SRC" ]]; then
+    [[ "$RECURSIVE" == true ]] && G='**' || G=''
+
+    X=($PWF_RAW_EXTENSIONS) RAW_GLOBS=${X[@]/#/"$SRC/$G/*."}
+    for f in $RAW_GLOBS; do extract_raw_preview "$f"; done
+
+    X=($PWF_JPG_EXTENSIONS) JPG_GLOBS=${X[@]/#/"$SRC/$G/*."}
+    for f in $JPG_GLOBS; do extract_jpg_preview "$f"; done
+else
+    [[ "$SRC" =~ $PWF_RAW_REGEX ]] && extract_raw_preview "$SRC"
+    [[ "$SRC" =~ $PWF_JPG_REGEX ]] && extract_jpg_preview "$SRC"
+fi
 
 echo "pwf-extract-previews: OK"

@@ -253,7 +253,8 @@ check_raw_derivatives ()
     local found_any=false
 
     # for each raw file, search any file with same name but different ending
-    for r in "$DIR"/**/*.{NEF,NRW,CR2}; do
+    X=($PWF_RAW_EXTENSIONS) RAW_GLOBS=${X[@]/#/"$DIR/**/*."}
+    for r in $RAW_GLOBS; do
         local base=$(basename "$r")  # cut path away
         base=${base%.*}  # cut file ending away
 

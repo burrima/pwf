@@ -31,20 +31,18 @@ export PS1="(pwf) $PS1"
 export PATH="$(pwd)/bin/:$PATH"
 
 # define global variables for pwf scripts
-export PWF_HOME="$HOME/pictures/own_photos/"
-
-export PWF_RAW_REGEX='^.*\.(NEF|NRW|CR2)*$'  # can be used e.g. with [[ =~ ]]
-
-# TODO: how to define these to work same as "$DIR"/**/*.{NEF,NRW,CR2} ??
-# export PwF_RAW_GLOB="**/*.NEF **/*.NRW **/*.CR2"
-# export PwF_JPG_GLOB="**/*.jpg **/*.JPG **/*.jpeg **/*.JPEG"
-# export PWF_RAW_GLOBS="*.NEF *.NRW *.CR2"
-
 export PWF_ALLOWED_CHARACTERS='[:alnum:]äöüÄÖÜé~._-'
 
+export PWF_HOME="$HOME/pictures/own_photos/"
 [[ "$PWF_HOME" =~ ^[//$PWF_ALLOWED_CHARACTERS]*$ ]] || \
     >&2 echo "ERROR: PWF_HOME path contains illegal characters!"
 # PWF_HOME can be considered save from now on...
+
+export PWF_RAW_EXTENSIONS="NEF NRW CR2"
+export PWF_JPG_EXTENSIONS="jpg JPG jpeg JPEG"
+
+export PWF_RAW_REGEX='^.*\.(NEF|NRW|CR2)'  # can be used e.g. with [[ =~ ]]
+export PWF_JPG_REGEX='^.*\.(jpg|JPG|jpeg|JPEG)'  # can be used e.g. with [[ =~ ]]
 
 # Set up fzf environment:
 export FZF_CTRL_T_COMMAND="find -L $PWF_HOME"
@@ -73,6 +71,17 @@ _pwf_is_event_dir() {
     [[ $(dirname "$1") =~ [0-9]{4} ]] && return 0 || return 1
 }
 export -f _pwf_is_event_dir
+
+_pwf_print_fzf_info() {
+    cat <<'EOF'
+    Any path can be specified either by by normal means of bash (e.g. with tab
+    completion) or by using the FZF tool. Type **<tab> to bring the FZF tool to 
+    front where you can select the desired path much faster (see man fzf for 
+    more details). Paths are automatically bound to the pwf folder structure,
+    so this script can be used from anywhere whith consistent behavior.
+EOF
+}
+export -f _pwf_print_fzf_info
 
 # Enable fuzzy completion for pwf commands
 alias ll >/dev/null 2>&1 || alias ll="ls -alF"

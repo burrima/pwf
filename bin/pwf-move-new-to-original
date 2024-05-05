@@ -76,7 +76,8 @@ done
 
 # make up $DIR variable:
 DIR=${@:$OPTIND:1}
-[[ ! "$DIR" ]] && DIR="."
+[[ ! "$DIR" || "$DIR" == "." ]] && DIR="$(pwd)"  # use current dir if none given
+[[ "$DIR" == /* ]] || DIR="$(pwd)/$DIR"  # ensure DIR is absolute path
 [[ -e "$DIR" ]] || _pwf_err_exit "\"$DIR\" does not exist!"
 
 # perform checks first

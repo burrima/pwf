@@ -44,16 +44,9 @@ INFO
           space and reduce the number of files on the HD. This step is
           reversible by the -u option.
 
-    A PATH can be specified either by by normal means of bash or by using the
-    FZF tool. Write 
-
-        pwf-cleanup **<tab>
-
-    to bring the FZF tool to front where you can select the desired path much
-    faster. Paths are automatically bound to the pwf folder structure, so the
-    check tool can be used from anywhere. If no PATH is specified, the current
-    directory will be taken.
 EOF
+
+    _pwf_print_fzf_info
 }
 
 UNDO=false
@@ -72,7 +65,7 @@ DIR=${@:$OPTIND:1}
 [[ -e "$DIR" ]] || _pwf_err_exit "\"$DIR\" does not exist!"
 [[ -d "$DIR" ]] || _pwf_err_exit "PATH must be a directory!"
 
-pwf-check -o name "$DIR" > /dev/null
+pwf-check -o name "$DIR" > /dev/null || exit 1
 
 if [[ "$DIR" == *"1_original"* ]]; then
     _pwf_err_exit "Nothing to cleanup in 1_original folder tree!"
@@ -100,7 +93,8 @@ elif [[ "$DIR" == *"2_lab"* ]]; then
         (cd "$DIR" && tar xjf $(basename "$TAR_FILE"))
 
         echo "Restoring preview files..."
-        pwf-extract-previews -l -f "$DIR/1_preview_files.txt" "${DIR/2_lab/1_original}"
+        pwf-extract-previews -f "$DIR/1_preview_files.txt" \
+            "${DIR/2_lab/1_original}" "@lab"
     fi
 fi
 

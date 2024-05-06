@@ -49,16 +49,9 @@ INFO
     allows to add or delete files, but modification is still not allowed. With
     the flag -a all files can be unlocked too (use with care!).
 
-    A PATH can be specified either by by normal means of bash or by using the
-    FZF tool. Write 
-
-        pwf-check **<tab>
-
-    to bring the FZF tool to front where you can select the desired path much
-    faster. Paths are automatically bound to the pwf folder structure, so the
-    check tool can be used from anywhere. If no PATH is specified, the current
-    directory will be taken.
 EOF
+
+    _pwf_print_fzf_info
 }
 
 IGNORE_LIST=""
@@ -87,7 +80,7 @@ DIR=${@:$OPTIND:1}
 
 # perform checks first
 if [[ "$OPERATION" == "protect" ]] && [[ "$FORCED" == "false" ]]; then
-    pwf-check -i "$IGNORE_LIST,prot" "$DIR"
+    pwf-check -i "$IGNORE_LIST,prot" "$DIR" || exit 1
 fi
 
 protect_folder ()

@@ -35,16 +35,9 @@ OPTIONS
 INFO
     Provides statistics about the files contained in the given PATH.
 
-    A PATH can be specified either by by normal means of bash or by using the
-    FZF tool. Write 
-
-        pwf-statistics **<tab>
-
-    to bring the FZF tool to front where you can select the desired path much
-    faster. Paths are automatically bound to the pwf folder structure, so the
-    check tool can be used from anywhere. If no PATH is specified, the current
-    directory will be taken.
 EOF
+
+    _pwf_print_fzf_info
 }
 
 while getopts 'h' OPTION; do

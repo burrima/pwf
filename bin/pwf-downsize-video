@@ -46,16 +46,9 @@ INFO
     more control as it passes the size directly to ffmpeg. See
     https://ffmpeg.org/ffmpeg-filters.html#scale-1 for more information.
 
-    A PATH can be specified either by by normal means of bash or by using the
-    FZF tool. Write 
-
-        pwf-downsize-video **<tab>
-
-    to bring the FZF tool to front where you can select the desired path much
-    faster. Paths are automatically bound to the pwf folder structure, so the
-    check tool can be used from anywhere. If no PATH is specified, the current
-    directory will be taken.
 EOF
+
+    _pwf_print_fzf_info
 }
 
 SIZE=
@@ -72,24 +65,22 @@ done
 
 # make up $DIR variable:
 DIR=${@:$OPTIND:1}
-[[ ! "$DIR" ]] && DIR="."
-[[ -e "$DIR" ]] || (>&2 echo "ERROR: \"$DIR\" does not exist!" && exit 1)
+[[ ! "$DIR" || "$DIR" == "." ]] && DIR="$(pwd)"  # use current dir if none given
+[[ "$DIR" == /* ]] || DIR="$(pwd)/$DIR"  # ensure DIR is absolute path
+[[ -e "$DIR" ]] || _pwf_err_exit "\"$DIR\" does not exist!"
 
 # perform checks:
 if [[ $SIZE ]]; then
-    if [[ $TAG =~ ^(UHD|QHD|FHD|HD)$ ]]; then
-        >&2 echo "ERROR: given reserved tag not allowed together with size!"
-        exit 1
-    fi
+    [[ $TAG =~ ^(UHD|QHD|FHD|HD)$ ]] || \
+        _pwf_err_exit "given reserved tag not allowed together with size!"
 else  # no size given
-    if [[ $TAG == HD ]]; then SIZE='-1x720^'
-    elif [[ $TAG == FHD ]]; then SIZE='-1x1080^'
-    elif [[ $TAG == QHD ]]; then SIZE='-1x1440^'
-    elif [[ $TAG == UHD ]]; then SIZE='-1x2160^'
-    else
-        >&2 echo "ERROR: given tag requires size to be specified too!"
-        exit 1
-    fi
+    case $TAG in
+        HD) SIZE='720x720^' ;;
+        FHD) SIZE='1080x1080^' ;;
+        QHD) SIZE='1440x1440^' ;;
+        UHD) SIZE='2160x2160^' ;;
+        *) _pwf_err_exit "given tag requires size to be specified too!" ;;
+    esac
 fi
 
 if [[ -d "$DIR" ]]; then

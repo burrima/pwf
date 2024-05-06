@@ -49,16 +49,9 @@ INFO
     By default, the script traverses the directory tree upwards to find the
     script get_date.sh automatically. This can be suppressed by the -b option.
     
-    A PATH can be specified either by by normal means of bash or by using the
-    FZF tool. Write 
-
-        pwf-rename-by-date **<tab>
-
-    to bring the FZF tool to front where you can select the desired path much
-    faster. Paths are automatically bound to the pwf folder structure, so the
-    check tool can be used from anywhere. If no PATH is specified, the current
-    directory will be taken.
 EOF
+
+    _pwf_print_fzf_info
 }
 
 UNDO=false
@@ -103,7 +96,7 @@ if [[ "$UNDO" == false && "$CORR_SCRIPT" ]]; then
 else
     echo "Using no correction script"
 fi
-pwf-check -o name "$DIR" > /dev/null
+pwf-check -o name "$DIR" > /dev/null || exit 1
 
 if [[ -d "$DIR" ]]; then
     # NOTE: * will be resolved when $filename is accessed without " "

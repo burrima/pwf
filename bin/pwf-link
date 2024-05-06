@@ -22,94 +22,109 @@
 
 set -e  # exit on any error
 shopt -s nullglob  # no error when glob has no match
+shopt -s globstar
 echo "pwf-link: ENTRY"
 
 function print_help {
 	cat <<'EOF'
 USAGE
-    pwf-link [OPTION...] SOURCE TARGET
-    pwf-link -l [OPTION...] SOURCE
+    pwf-link [OPTION...] SRC [DST_DIR]
+    pwf-extract-previews [OPTION...] SRC @lab
 
 OPTIONS
-    -a     link all source files to lab, independent of preview existance
     -h     show this help
+    -a     link all source files to lab, independent of preview existance
+    -r     recursively seach through subdirectories of given SRC
 
 INFO
-    Links SOURCE file(s) into the TARGET directory.
+    Links SRC file(s) into the DST_DIR directory.
 
-    If option -l is provided then the raw, jpg, audio and video files of the
-    given SOURCE event folder (in 1_original/ tree) are linked into the TARGET
-    event folder (in 2_lab/ tree) to corresponding 2_original_ sub-folders.
-    Files are then only linked if the 1_preview/ folder contains corresponding
-    preview file (use option -a to omit this feature).
+    SRC can be a file or a folder. Folders can be traversed recursively with the
+    option -r. A DST_DIR can be specified where to place the preview images. If
+    no destination is provided, the files will be placed where the script is
+    called from.
 
-    A path can be specified either by by normal means of bash or by using the
-    FZF tool. Write 
+    DST_DIR can be set to "@lab" to cause special behavior: In this case, SRC
+    must point to an event folder in the 1_original/ tree. All files are then
+    linked into the corresponding event folder in the 2_lab/ tree, into sub-
+    folders 2_original_{jpg,raw,audio,video} (implies option -r). RAW and JPG
+    images are only linked if a corresponding preview file is present in the
+    folder 1_preview/ of the lab event folder. This can be bypassed with the
+    option -a.
 
-        pwf-prepare-lab **<tab>
-
-    to bring the FZF tool to front where you can select the desired path much
-    faster. Paths are automatically bound to the pwf folder structure, so the
-    check tool can be used from anywhere. If no PATH is specified, the current
-    directory will be taken.
 EOF
+
+    _pwf_print_fzf_info
 }
 
 LAB=false
 LINK_ALL=false
+RECURSIVE=false
 
-while getopts 'hal' OPTION; do
+while getopts 'har' OPTION; do
     case "$OPTION" in
         h) print_help; exit 0 ;;
         a) LINK_ALL=true ;;
-        l) LAB=true ;;
+        r) RECURSIVE=true ;;
         *) print_help; exit 1 ;;
     esac
 done
 
 # make up source and target variables:
-SOURCE=${@:$OPTIND:1}
-TARGET=${@:$OPTIND+1:2}
-[[ -e "$SOURCE" ]] || _pwf_err_exit "source \"$SOURCE\" does not exist!"
-[[ "$LAB" == true && "$TARGET" ]] && _pwf_err_exit "no TARGET allowed with -l"
+SRC=${@:$OPTIND:1}
+[[ "$SRC" ]] && DST_DIR=${@:$OPTIND+1:2} || DST_DIR=
+[[ ! "$SRC" || "$SRC" == "." ]] && SRC="$(pwd)"  # use current dir if none given
+[[ "$SRC" == /* ]] || SRC="$(pwd)/$SRC"  # ensure SRC is absolute path
+[[ -e "$SRC" ]] || _pwf_err_exit "\"$SRC\" does not exist!"
+
+# make up $DST_DIR variable:
+if [[ "$DST_DIR" == "" ]]; then
+    DST_DIR="$(pwd)/"
+elif [[ "$DST_DIR" == "@lab" ]]; then
+    LAB=true
+    _pwf_is_event_dir "$SRC" || \
+        _pwf_err_exit "SRC must be an event dir in 1_original/ tree!"
+    DST_DIR="${SRC/1_original/2_lab}"
+    RECURSIVE=true
+fi
+[[ -d "$DST_DIR" ]] || _pwf_err_exit "output directory $DST_DIR does not exist!"
 
 # perform precondition checks:
-pwf-check -o name "$SOURCE" > /dev/null || exit 1
+pwf-check -o name "$SRC" > /dev/null || exit 1
+
+# define helper methods:
+link_from_lab ()
+{
+    echo "Link originals to lab..."
+    for t in raw jpg audio video; do
+        [[ -e "$SRC/$t" ]] || continue
+        mkdir -p "$DST_DIR/2_original_$t"
+        [[ "$RECURSIVE" == true ]] && G='**' || G=''
+        for f in "$SRC"/$t/$G/*.*; do
+            f_name=$(basename $f)
+            if [[ "$t" == "raw" || "$t" == "jpg" ]]; then
+                trunc=${f_name%.*}
+                if [[ "$LINK_ALL" == false && \
+                    ! $(find "$DST_DIR/1_preview/" -name "*$trunc*") ]]
+                then
+                    echo "Ignore $(basename $f) - no preview existing"
+                    continue
+                fi
+            fi
+            DST="$DST_DIR/2_original_$t/$f_name"
+            [[ -f "$DST" ]] || ln -s -r "$f" "$DST"
+        done
+    done
+}
 
 # special feature: link originals to lab folder:
 if [[ "$LAB" == true ]]; then
-    _pwf_is_event_dir "$SOURCE" || \
-        _pwf_err_exit "SOURCE must be an event dir in 1_original/ tree!"
-    TARGET="${SOURCE/1_original/2_lab}"
-
-    echo "Link originals to lab..."
-    for t in raw jpg; do
-        [[ -e "$SOURCE/$t" ]] || continue
-        if [[ -e "$TARGET/2_original_$t" ]]; then
-            echo "2_original_$t exists, skipping it"
-            continue
-        fi
-        for f in "$SOURCE"/$t/*; do
-            trunc=$(basename $f)
-            trunc=${trunc%.*}
-            if [[ "$LINK_ALL" == false && ! $(find "$TARGET/1_preview/" -name "*$trunc*") ]]; then
-                echo "Ignore $(basename $f) - no preview existing"
-                continue
-            fi
-            mkdir -p "$TARGET/2_original_$t"
-            ln -s -r "$f" "$TARGET/2_original_$t/"
-        done
+    link_from_lab
+else
+    [[ "$RECURSIVE" == true ]] && G='**' || G=''
+    for f in "$SRC"/$G/*.*; do
+        ln -s -r "$f" "$DST_DIR/"
     done
-    for t in video audio; do
-        [[ -e "$SOURCE/$t" ]] || continue
-        if [[ -e "$TARGET/2_original_$t" ]]; then
-            echo "2_original_$t exists, skipping it"
-            continue
-        fi
-        for f in "$SOURCE"/$t/*; do
-            mkdir -p "$TARGET/2_original_$t"
-            ln -s -r "$f" "$TARGET/2_original_$t/"
-        done
-    done
-
 fi
+
+echo "pwf-link: OK"

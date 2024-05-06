@@ -20,7 +20,7 @@
 #
 
 # check preconditions
-for tool in fzf exiv2 convert md5sum ffmpeg; do
+for tool in fzf exiv2 convert cksum md5sum ffmpeg; do
     [[ $(type -P $tool) ]] || >&2 echo "ERROR: $tool not installed!"
 done
 
@@ -91,7 +91,6 @@ _fzf_setup_completion path pwf-extract-previews
 _fzf_setup_completion dir pwf-move-new-to-original
 _fzf_setup_completion path pwf-protect
 _fzf_setup_completion dir pwf-statistics
-_fzf_setup_completion dir pwf-prepare-lab
 _fzf_setup_completion path pwf-rename-by-date
 _fzf_setup_completion dir pwf-cleanup
 _fzf_setup_completion path pwf-downsize-image

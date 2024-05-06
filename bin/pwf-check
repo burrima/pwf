@@ -59,16 +59,9 @@ INFO
         * file and folder structure (path)
     Checks can be disabled individually, see OPTIONS above.
     
-    A PATH can be specified either by by normal means of bash or by using the
-    FZF tool. Write 
-
-        pwf-check **<tab>
-
-    to bring the FZF tool to front where you can select the desired path much
-    faster. Paths are automatically bound to the pwf folder structure, so the
-    check tool can be used from anywhere. If no PATH is specified, the current
-    directory will be taken.
 EOF
+
+    _pwf_print_fzf_info
 }
 
 PWF_VALID_FILES="\
@@ -123,7 +116,7 @@ DIR=${@:$OPTIND:1}
 
 if [[ $IGNORE_LIST ]]; then
     [[ "$IGNORE_LIST" == *"name"* ]] && \
-        echo "Ignoring name violations is strongly discouraged!"
+        echo "WARNING: Ignoring name violations is strongly discouraged!"
     [[ "$DIR" == *"0_new"* && "$IGNORE_LIST" == *"dup"* ]] && \
         _pwf_err_exit "Ignoring duplicate violations is not allowed!"
     [[ "$DIR" == *"0_new"* && "$IGNORE_LIST" == *"path"* ]] && \
@@ -131,8 +124,8 @@ if [[ $IGNORE_LIST ]]; then
 fi
 
 # automatically set ignore flags based on $DIR:
-[[ "$DIR" == *"0_new"* ]] && IGNORE_LIST="$IGNORE_LIST,cs,prot"
-[[ "$DIR" == *"2_lab"* ]] && IGNORE_LIST="$IGNORE_LIST,cs,prot,path"
+[[ "$DIR" == *"0_new"* ]] && IGNORE_LIST="$IGNORE_LIST,cs,miss,prot"
+[[ "$DIR" == *"2_lab"* ]] && IGNORE_LIST="$IGNORE_LIST,cs,miss,prot,path"
 
 # set flags based on only-list:
 if [[ $ONLY_LIST ]]; then
@@ -145,29 +138,31 @@ if [[ $ONLY_LIST ]]; then
     CHK_RAW_DERIVATES=false
 
     for what in ${ONLY_LIST//,/ }; do
-        if [[ "$what" == "cs" ]]; then CHK_CHECKSUMS=true
-        elif [[ "$what" == "dup" ]]; then CHK_DUPLICATES=true
-        elif [[ "$what" == "miss" ]]; then CHK_MISSING=true
-        elif [[ "$what" == "name" ]]; then CHK_NAMES=true
-        elif [[ "$what" == "path" ]]; then CHK_PATHS=true
-        elif [[ "$what" == "prot" ]]; then CHK_PROTECTION=true
-        elif [[ "$what" == "raw" ]]; then CHK_RAW_DERIVATES=true
-        else _pwf_err_exit "Option -o does not know $what"
-        fi
+        case $what in
+            cs) CHK_CHECKSUMS=true ;;
+            dup) CHK_DUPLICATES=true ;;
+            miss) CHK_MISSING=true ;;
+            name) CHK_NAMES=true ;;
+            path) CHK_PATHS=true ;;
+            prot) CHK_PROTECTION=true ;;
+            raw) CHK_RAW_DERIVATES=true ;;
+            *) _pwf_err_exit "Option -o does not know $what" ;;
+        esac
     done
 fi
 
 # set flags based on ignore-list:
 for what in ${IGNORE_LIST//,/ }; do
-    if [[ "$what" == "cs" ]]; then CHK_CHECKSUMS=false
-    elif [[ "$what" == "dup" ]]; then CHK_DUPLICATES=false
-    elif [[ "$what" == "miss" ]]; then CHK_MISSING=false
-    elif [[ "$what" == "name" ]]; then CHK_NAMES=false
-    elif [[ "$what" == "path" ]]; then CHK_PATHS=false
-    elif [[ "$what" == "prot" ]]; then CHK_PROTECTION=false
-    elif [[ "$what" == "raw" ]]; then CHK_RAW_DERIVATES=false
-    else _pwf_err_exit "Option -i does not know $what"
-    fi
+    case $what in
+        cs) CHK_CHECKSUMS=false ;;
+        dup) CHK_DUPLICATES=false ;;
+        miss) CHK_MISSING=false ;;
+        name) CHK_NAMES=false ;;
+        path) CHK_PATHS=false ;;
+        prot) CHK_PROTECTION=false ;;
+        raw) CHK_RAW_DERIVATES=false ;;
+        *) _pwf_err_exit "Option -i does not know $what" ;;
+    esac
 done
 
 check_names ()
@@ -224,8 +219,7 @@ check_duplicates ()
         fi
     done
 
-    [[ $found_any == true ]] && \
-        _pwf_err_exit "duplicate files found!"
+    [[ $found_any == true ]] && _pwf_err_exit "duplicate files found!"
     return 0
 }
 
@@ -259,25 +253,21 @@ check_raw_derivatives ()
         base=${base%.*}  # cut file ending away
 
         # be more aggressive in finding the RAW base name by only considering
-        # the last 8 characters of the base name. But perform a plausibility
-        # check: resulting base names must start with "DS" or "IMG".
+        # the last 8 characters of the base name (cut away any prefix).
+        # This matches names like DSC_1234 or IMG_1234, as usually used by
+        # cameras. This is not so robust, but ok for my personal needs.
         base=${base: -8}
-        if [ "${base:0:2}" != "DS" -a "${base:0:3}" != "IMG" -a "${base:0:3}" != "_DS" ]; then
-            >&2 echo "WARNING: unable to parse RAW file name: $r"
-            continue
-        fi
 
         for f in "$DIR"/**/*$base*; do
             [[ "$f" =~ $PWF_RAW_REGEX ]] && continue
-            echo "Derivative found:"
+            echo "Potential RAW derivative found:"
             echo "  derivative: $f"
             echo "  origin raw: $r"
             found_any=true
         done
     done
 
-    [[ $found_any == true ]] && \
-        _pwf_err_exit "RAW derivatives found!"
+    [[ $found_any == true ]] && _pwf_err_exit "RAW derivatives found!"
     return 0
 }
 
@@ -299,7 +289,7 @@ check_paths ()
         is_valid="false"
         for pat in $PWF_VALID_FILES; do
             OIFS=$IFS; IFS=":" read valext valpar <<< ${pat}; IFS=$OIFS
-            if [[ "$extension" == "$valext" ]] && [[ "$parent" == "$valpar" ]]; then
+            if [[ "$extension" == "$valext" && "$parent" == "$valpar" ]]; then
                 is_valid="true" 
                 break
             fi

@@ -46,16 +46,9 @@ INFO
     must contain files sorted to raw/, jpg/, video/ and audio/ otherwise the
     script will exit with an error.
 
-    A PATH can be specified either by by normal means of bash or by using the
-    FZF tool. Write 
-
-        pwf-move-new-to-original **<tab>
-
-    to bring the FZF tool to front where you can select the desired path much
-    faster. Paths are automatically bound to the pwf folder structure, so the
-    check tool can be used from anywhere. If no PATH is specified, the current
-    directory will be taken. In any case, PATH must be an event directory!
 EOF
+
+    _pwf_print_fzf_info
 }
 
 IGNORE_LIST=
@@ -82,7 +75,7 @@ DIR=${@:$OPTIND:1}
 
 # perform checks first
 folder=$(basename "$DIR")
-pwf-check -i "$IGNORE_LIST,prot,cs,miss" "$DIR"
+pwf-check -i "$IGNORE_LIST,prot,cs,miss" "$DIR" || exit 1
 
 if [[ ! $YEAR ]]; then
     [[ ! "$folder" =~ ^[0-9]{4}[-_] ]] && \

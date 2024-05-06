@@ -79,7 +79,7 @@ SRC=${@:$OPTIND:1}
 [[ "$SRC" == /* ]] || SRC="$(pwd)/$SRC"  # ensure SRC is absolute path
 [[ -e "$SRC" ]] || _pwf_err_exit "\"$SRC\" does not exist!"
 
-# make up $DSI_DIR variable:
+# make up $DST_DIR variable:
 if [[ "$DST_DIR" == "" ]]; then
     DST_DIR="$(pwd)/"
 elif [[ "$DST_DIR" == "@lab" ]]; then

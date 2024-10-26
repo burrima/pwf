@@ -1,8 +1,8 @@
 # Photo-Editing Work-Flow (PWF) Bash Tools
 
-::: info
-This branch is the release branch. There is no release yet, all activities are happening on the branch "develop"!
-:::
+> [!NOTE]
+> This branch is the release branch. There is no release yet, all activities are happening on the branch "develop"!
+
 
 This repository contains self-developed Bash scripts (small tools) for my personal photo editing workflow. These scripts can be used by anyone, that's why I put them onto Github.
 

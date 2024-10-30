@@ -2,7 +2,12 @@
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path, PurePath
+import hashlib
+import logging
 import re
+
+
+logger = logging.getLogger(__name__)
 
 legal_characters = r"\wäöüÄÖÜé~._-"
 
@@ -41,7 +46,7 @@ class PwfPath():
             self.filename = PurePath(path).name
 
         parts = PurePath(path).parts
-        print(f"PwfPath: {parts=}")
+        logger.debug(f"PwfPath: {parts=}")
 
         for part in parts:
 
@@ -73,5 +78,13 @@ class PwfPath():
             raise ValueError("Cannot parse state from path!")
 
 
+def md5sum(path, is_partial=False):
+    # if is_partial=True, read only first 8k data (which should be fine for
+    # pictures).
+    # TODO: read chunked for big files (memory issue)
+    with open(path, "rb") as f:
+        data = f.read(8000 if is_partial else None)
+        md5sum = hashlib.md5(data).hexdigest()
+    return md5sum
 
 

@@ -30,10 +30,12 @@ function print_help {
 USAGE
     pwf-link [OPTION...] SRC [DST_DIR]
     pwf-link [OPTION...] SRC @lab
+    pwf-link [OPTION...] SRC @album
 
 OPTIONS
     -h     show this help
     -a     link all source files to lab, independent of preview existance
+    -i     prompt whether to remove destinations (y/n)
     -r     recursively seach through subdirectories of given SRC
 
 INFO
@@ -58,13 +60,18 @@ EOF
 }
 
 LAB=false
+ALBUM=false
 LINK_ALL=false
 RECURSIVE=false
+FORCE=false
+INTERACTIVE=false
 
-while getopts 'har' OPTION; do
+while getopts 'hafir' OPTION; do
     case "$OPTION" in
         h) print_help; exit 0 ;;
         a) LINK_ALL=true ;;
+        f) FORCE=true ;;
+        i) INTERACTIVE=true ;;
         r) RECURSIVE=true ;;
         *) print_help; exit 1 ;;
     esac
@@ -85,6 +92,13 @@ elif [[ "$DST_DIR" == "@lab" ]]; then
     _pwf_is_event_dir "$SRC" || \
         _pwf_err_exit "SRC must be an event dir in 1_original/ tree!"
     DST_DIR="${SRC/1_original/2_lab}"
+    RECURSIVE=true
+elif [[ "$DST_DIR" == "@album" ]]; then
+    ALBUM=true
+    _pwf_is_event_dir "$SRC" || \
+        _pwf_err_exit "SRC must be an event dir!"
+    DST_DIR="${SRC/2_lab/3_album}"
+    mkdir -p "$DST_DIR"
     RECURSIVE=true
 fi
 [[ -d "$DST_DIR" ]] || _pwf_err_exit "output directory $DST_DIR does not exist!"
@@ -117,13 +131,30 @@ link_from_lab ()
     done
 }
 
+link_from_album()
+{
+    # TODO: allow to link to 1_original events directly!
+    for d in "$SRC"/3_final_*; do
+        d_name=$(basename $d)
+        d_name="${d_name/3_final_/}"
+        mkdir -p "$DST_DIR/$d_name"
+        pwf-link -f -r "$d" "$DST_DIR/$d_name"
+    done
+}
+
 # special feature: link originals to lab folder:
 if [[ "$LAB" == true ]]; then
     link_from_lab
+elif [[ "$ALBUM" == true ]]; then
+    link_from_album
 else
     [[ "$RECURSIVE" == true ]] && G='**' || G=''
     for f in "$SRC"/$G/*.*; do
-        ln -s -r "$f" "$DST_DIR/"
+        extra_param=""
+        [[ $INTERACTIVE == "true" ]] && extra_param="$extra_param -i"
+        [[ $FORCE == "true" ]] && extra_param="$extra_param -f"
+        echo ln $extra_param -n -s -r "$f" "$DST_DIR/"
+        ln $extra_param -n -s -r "$f" "$DST_DIR/"
     done
 fi
 

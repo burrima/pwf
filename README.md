@@ -171,7 +171,7 @@ The folder `1_original/` is the storage for the original files. No file in this 
 
 To prepare the lab for an event, use the following script:
 
-    pwf-prepare-lab PATH_TO_ORIG
+    pwf-prepare-lab PATH_TO_ORIG_EVENT
 
 The first time this script is called (i.e. when no corresponding event folder is present in the `2_lab/` folder structure) it creates a new event  folder in the lab directory and puts only the preview files into `1_previews/` (jpg and raw previes combined). Furthermore, it uses `pwf-rename-by-date` to append a date prefix in front of each preview file name. This brings the files from different cameras into order.
 

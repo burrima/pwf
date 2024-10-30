@@ -153,7 +153,7 @@ During this step, all files prepared in a new event folder inside `0_new/` will 
 
 Use the following command to integrate the new files to the `1_original/` archive:
 
-    pwf-move-new-to-original PATH
+    pwf-import PATH
 
 This again runs `pwf-check` before doing anything. If passed, it moves the whole event folder into the archive. Then, it runs `pwf-protect` to protect the files against (intentional or unintentional) manipulation. Also this script shall report `OK` at the end.
 

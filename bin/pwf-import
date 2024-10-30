@@ -23,12 +23,12 @@
 set -e
 shopt -s nullglob  # no error when glob has no match
 shopt -s globstar  # recursive by default
-echo "pwf-move-new-to-original: ENTRY"
+echo "pwf-import: ENTRY"
 
 print_help () {
 	cat <<'EOF'
 USAGE:
-    pwf-move-new-to-original [OPTION...] PATH
+    pwf-import [OPTION...] PATH
 
 OPTIONS
 
@@ -42,9 +42,9 @@ OPTIONS
     -n     nono, dry-run, only print actions, do nothing
 
 INFO
-    Move a new folder structure to the 1_original/ storage. The folder structure
-    must contain files sorted to raw/, jpg/, video/ and audio/ otherwise the
-    script will exit with an error.
+    Import (i.e. move a new folder structure to the 1_original/ storage. The 
+    folder structure must contain files sorted to raw/, jpg/, video/ and audio/
+    otherwise the script will exit with an error.
 
 EOF
 
@@ -101,4 +101,4 @@ echo "Protecting target directory..."
 
 [[ "$DRY_RUN" == true ]] && echo "NOTHING DONE, DRY-RUN!" && exit 0
 
-echo "pwf-move-new-to-original: OK"
+echo "pwf-import: OK"

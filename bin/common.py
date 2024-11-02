@@ -1,7 +1,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path, PurePath
+from pathlib import Path
 import hashlib
 import logging
 import re
@@ -10,6 +10,31 @@ import re
 logger = logging.getLogger(__name__)
 
 legal_characters = r"\wäöüÄÖÜé~._-"
+
+name_replacements = (
+    (" ", "_"),
+    ("&", "und"),
+    ("-_", ""))
+
+raw_file_extensions = ("NEF", "NRW", "CR2")
+
+valid_file_locations = {
+    "NEF": "raw",
+    "NRW": "raw",
+    "CR2": "raw",
+    "jpg": "jpg",
+    "jpeg": "jpg",
+    "JPG": "jpg",
+    "JPEG": "jpg",
+    "MOV": "video",
+    "mp4": "video",
+    "MP4": "video",
+    "mpeg": "video",
+    "mov": "video",
+    "MOV": "video",
+    "wav": "audio",
+    "WAV": "audio",
+    "mp3": "audio"}
 
 fzf_info_text=\
     """
@@ -39,13 +64,14 @@ class PwfPath():
 
     def __init__(self, path):
 
+        # TODO: required?
         self.path = Path.cwd() if path is None or path == "." else Path(path)
 
         if self.path.is_file():
             self.is_file = True
-            self.filename = PurePath(path).name
+            self.filename = path.name
 
-        parts = PurePath(path).parts
+        parts = path.parts
         logger.debug(f"PwfPath: {parts=}")
 
         for part in parts:

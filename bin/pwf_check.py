@@ -253,7 +253,7 @@ def _get_checklist(pwf_path: common.PwfPath, ignorelist: set = None,
 def main(path: Path, ignorelist: set = None, onlylist: set = None,
          do_fix: bool = False, is_nono: bool = False):
 
-    logger.info("pwf-check: ENTRY")
+    logger.info("pwf_check: ENTRY")
 
     # parse and check path:
     pwf_path = common.PwfPath(path)
@@ -290,7 +290,7 @@ def main(path: Path, ignorelist: set = None, onlylist: set = None,
     if "miss" in checklist:
         _check_missing_files(pwf_path)
 
-    logger.info("pwf-check: OK")
+    logger.info("pwf_check: OK")
 
 
 if __name__ == "__main__":

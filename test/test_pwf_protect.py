@@ -23,7 +23,7 @@
 
 import pytest
 from bin import pwf_init
-from bin import pwf_import
+from bin import pwf_protect
 from test import common as test_common
 from pathlib import Path
 import shutil
@@ -37,17 +37,17 @@ def initial_paths():
     pwf_init.create_initial_paths(root_path)
 
     test_common.create_paths((
-        (f"{root_path}/0_new/2024-10-30_event_1/", 0),
-        (f"{root_path}/0_new/2024-10-30_event_1/jpg/", 0),
-        (f"{root_path}/0_new/2024-10-30_event_1/jpg/DSC_1000.jpg", 10000),
-        (f"{root_path}/0_new/2024-10-30_event_1/jpg/DSC_1001.jpg", 10000),
-        (f"{root_path}/0_new/2024-10-30_event_1/jpg/DSC_1002.jpg", 10000),
+        (f"{root_path}/1_original/2024/2024-10-30_ev_1/", 0),
+        (f"{root_path}/1_original/2024/2024-10-30_ev_1/jpg/", 0),
+        (f"{root_path}/1_original/2024/2024-10-30_ev_1/jpg/DSC_100.jpg", 9000),
+        (f"{root_path}/1_original/2024/2024-10-30_ev_1/jpg/DSC_101.jpg", 9000),
+        (f"{root_path}/1_original/2024/2024-10-30_ev_1/jpg/DSC_102.jpg", 9000),
         (f"{root_path}/3_album/2024/", 0),
         (f"{root_path}/4_print/2024/", 0),
     ))
 
-    for p in sorted(Path(f"{root_path}/1_original").glob("**/*"),
-                    reverse=True):
+    path = Path(f"{root_path}/1_original").glob("**/*")
+    for p in sorted(path, reverse=True):
         p.chmod(0o555) if p.is_dir() else p.lchmod(0o444)
     for p in sorted(Path(f"{root_path}/3_album").glob("**/*"), reverse=True):
         p.chmod(0o555) if p.is_dir() else p.lchmod(0o444)
@@ -66,5 +66,7 @@ def initial_paths():
     shutil.rmtree(Path(root_path), ignore_errors=True)
 
 
-def test_normal(initial_paths):
-    pwf_import.main(Path(f"{root_path}/0_new/2024-10-30_event_1/"))
+def test_unprotect(initial_paths):
+    pwf_protect.main(Path(f"{root_path}/1_original/2024"),
+                     do_unprotect=True, is_all=True)
+    pwf_protect.main(Path(f"{root_path}/1_original/2024"))

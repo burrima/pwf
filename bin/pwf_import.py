@@ -57,7 +57,7 @@ This script automates the following sequence:
 def main(path: Path, ignorelist: set = None, year: int = None,
          keep_unprotected: bool = False, is_nono: bool = False):
 
-    logger.info("pwf-import: ENTRY")
+    logger.info("pwf_import: ENTRY")
 
     # parse and check path:
     pwf_path = common.PwfPath(path)
@@ -100,13 +100,13 @@ def main(path: Path, ignorelist: set = None, year: int = None,
 
     pwf_protect.unprotect(target_dir)
 
-    logger.info(f"  Move: {pwf_path.path} -> {target_dir}/{pwf_path.event}")
+    logger.info(f"  Move: {pwf_path.path} -> {target_dir}/")
     shutil.move(pwf_path.path, target_dir)
 
     if not keep_unprotected:
-        pwf_protect.protect(target_dir)
+        pwf_protect.protect(target_dir, is_forced=True)
 
-    logger.info("pwf-import: OK")
+    logger.info("pwf_import: OK")
 
 
 if __name__ == "__main__":

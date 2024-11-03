@@ -22,9 +22,11 @@
 
 
 from bin import common
+from bin import pwf_check
 from pathlib import Path
 import argparse
 import logging
+import subprocess
 
 
 logger = logging.getLogger(__name__)
@@ -42,8 +44,41 @@ flag -a all files can be unlocked too (use with care!).
     """ + common.fzf_info_text
 
 
-def main(path: Path):
-    pass
+def unprotect(path: Path, is_all: bool = False):
+    md5_file = path.parent / (path.name + ".md5")
+    for p in sorted(path.glob("**/*")):
+        if p.is_dir():
+            p.chmod(0o775)
+        elif is_all and p.is_file():
+            p.lchmod(0o664)
+    if md5_file.exists():
+        md5_file.lchmod(0o664)
+
+
+def protect(path: Path, is_forced: bool = False):
+    md5_file = path.parent / (path.name + ".md5")
+    if not is_forced:
+        pwf_check.main(path, ignorelist={"prot", })
+    for p in sorted(path.glob("**/*")):
+        if p.is_dir():
+            p.chmod(0o555)
+        elif p.is_file():
+            cmd = f"md5sum -b {p} >> {md5_file}"
+            subprocess.run(cmd, shell=True)
+            p.lchmod(0o444)
+
+
+def main(path: Path, do_unprotect: bool = False, is_forced: bool = False,
+         is_all: bool = False):
+
+    logger.info("pwf_protect: ENTRY")
+
+    if do_unprotect:
+        unprotect(path, is_all)
+    else:
+        protect(path, is_forced)
+
+    logger.info("pwf_protect: OK")
 
 
 if __name__ == "__main__":
@@ -72,7 +107,8 @@ if __name__ == "__main__":
     logger.debug(f"{args=}")
 
     try:
-        main(Path(args.path))
+        main(Path(args.path), do_unprotect=args.unprotect,
+             is_forced=args.forced, is_all=args.all)
     except ValueError as ex:
         logger.error(str(ex))
     except AssertionError as ex:

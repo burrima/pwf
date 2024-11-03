@@ -327,4 +327,7 @@ if __name__ == "__main__":
         if not onlylist.issubset(things_to_check):
             raise ValueError("Invalid ONLYLIST provided!")
 
-    check(Path(args.path), ignorelist, onlylist, args.fix, args.nono)
+    try:
+        check(Path(args.path), ignorelist, onlylist, args.fix, args.nono)
+    except AssertionError as ae:
+        logger.error(str(ae))

@@ -24,28 +24,21 @@ import pytest
 from bin import pwf_init
 from bin import pwf_check
 from bin import common
+from test import common as test_common
 from pathlib import Path
 import shutil
 import os
 import logging
 
 
-root_path = "test/pictures"
-
-
-def create_paths(extra_paths):
-    for path, size in extra_paths:
-        if path[-1] == "/":
-            pwf_init.create_dir(path)
-        else:
-            pwf_init.create_file(path, size)
+root_path = test_common.root_path
 
 
 @pytest.fixture
 def initial_paths():
     pwf_init.create_initial_paths(root_path)
 
-    create_paths((
+    test_common.create_paths((
         (f"{root_path}/1_original/2024/2024-10-30_event_1/", 0),
         (f"{root_path}/1_original/2024/2024-10-30_event_1/jpg/", 0),
         (f"{root_path}/1_original/2024/2024-10-30_event_1/jpg/DSC_1000.jpg", 10000),
@@ -76,15 +69,15 @@ def initial_paths():
 
 def test_normal(initial_paths):
     logging.info(">>> check 0_new")
-    pwf_check.check(Path(f"{root_path}/0_new"))
+    pwf_check.main(Path(f"{root_path}/0_new"))
     logging.info(">>> check 1_original")
-    pwf_check.check(Path(f"{root_path}/1_original/2024"))
+    pwf_check.main(Path(f"{root_path}/1_original/2024"))
     logging.info(">>> check 2_lab")
-    pwf_check.check(Path(f"{root_path}/2_lab"))
+    pwf_check.main(Path(f"{root_path}/2_lab"))
     logging.info(">>> check 3_album")
-    pwf_check.check(Path(f"{root_path}/3_album/2024"))
+    pwf_check.main(Path(f"{root_path}/3_album/2024"))
     logging.info(">>> check 4_print")
-    pwf_check.check(Path(f"{root_path}/4_print/2024"))
+    pwf_check.main(Path(f"{root_path}/4_print/2024"))
 
 
 def test_cs(initial_paths):
@@ -103,7 +96,7 @@ def test_dup(initial_paths):
             data = os.urandom(15000)
             f.write(data)
 
-    pwf_check.check(Path(f"{root_path}/0_new"))
+    pwf_check.main(Path(f"{root_path}/0_new"))
 
     logging.info(">>> create 2 identical files in 0_new")
     data = os.urandom(15000)
@@ -112,7 +105,7 @@ def test_dup(initial_paths):
             f.write(data)
 
     with pytest.raises(AssertionError) as exception:
-        pwf_check.check(Path(f"{root_path}/0_new"))
+        pwf_check.main(Path(f"{root_path}/0_new"))
 
     assert str(exception.value) == "Found duplicate files!"
 
@@ -124,14 +117,14 @@ def test_miss(initial_paths):
 
 def test_name(initial_paths, caplog):
     logging.info(">>> create directory and files with wrong characters")
-    create_paths ((
+    test_common.create_paths ((
         (f"{root_path}/0_new/2024-10-30_event & space/", 0),
         (f"{root_path}/0_new/2024-10-30_event & space/jpg/my file.jpg", 512),
     ))
 
     logging.info(">>> check for name violations")
     with pytest.raises(AssertionError) as exception:
-        pwf_check.check(Path(f"{root_path}/0_new"), onlylist={"name",})
+        pwf_check.main(Path(f"{root_path}/0_new"), onlylist={"name",})
 
     assert str(exception.value) == "Found illegal chars in file or folder names!"
 
@@ -142,13 +135,13 @@ def test_name(initial_paths, caplog):
 
 def test_fix_name_nono(initial_paths, caplog):
     logging.info(">>> create directory and files with wrong characters")
-    create_paths ((
+    test_common.create_paths ((
         (f"{root_path}/0_new/2024-10-30_event & space/", 0),
         (f"{root_path}/0_new/2024-10-30_event & space/jpg/my file.jpg", 512),
     ))
 
     logging.info(">>> fix name violations - dry-run")
-    pwf_check.check(Path(f"{root_path}/0_new"), onlylist={"name",}, do_fix=True, is_nono=True)
+    pwf_check.main(Path(f"{root_path}/0_new"), onlylist={"name",}, do_fix=True, is_nono=True)
 
     assert "Dry-run: would do the following:" in caplog.text
     assert "'my file.jpg' -> 'my_file.jpg'" in caplog.text
@@ -157,13 +150,13 @@ def test_fix_name_nono(initial_paths, caplog):
 
 def test_fix_name(initial_paths, caplog):
     logging.info(">>> create directory and files with wrong characters")
-    create_paths ((
+    test_common.create_paths ((
         (f"{root_path}/0_new/2024-10-30_event & space/", 0),
         (f"{root_path}/0_new/2024-10-30_event & space/jpg/my file.jpg", 512),
     ))
 
     logging.info(">>> fix name violations")
-    pwf_check.check(Path(f"{root_path}/0_new"), onlylist={"name",}, do_fix=True)
+    pwf_check.main(Path(f"{root_path}/0_new"), onlylist={"name",}, do_fix=True)
 
     assert "Dry-run: would do the following:" not in caplog.text
     assert "'my file.jpg' -> 'my_file.jpg'" in caplog.text
@@ -172,14 +165,14 @@ def test_fix_name(initial_paths, caplog):
 
 def test_path(initial_paths, caplog):
     logging.info(">>> create files in wrong subdirs")
-    create_paths ((
+    test_common.create_paths ((
         (f"{root_path}/0_new/2024-10-30_example_event/raw/myFile.jpg", 512),
         (f"{root_path}/0_new/2024-10-30_example_event/jpg/myFile.NEF", 512),
     ))
 
     logging.info(">>> check path violations")
     with pytest.raises(AssertionError) as exception:
-        pwf_check.check(Path(f"{root_path}/0_new"), onlylist={"path",})
+        pwf_check.main(Path(f"{root_path}/0_new"), onlylist={"path",})
 
     assert str(exception.value) == "Found files in wrong locations!"
 
@@ -198,20 +191,20 @@ def test_prot(initial_paths, caplog):
 
     logging.info(">>> check file and folder protection")
     with pytest.raises(AssertionError) as exception:
-        pwf_check.check(Path(f"{root_path}/1_original/2024"), onlylist={"prot",})
+        pwf_check.main(Path(f"{root_path}/1_original/2024"), onlylist={"prot",})
 
     assert str(exception.value) == "Found unprotected files or directories!"
     assert f"Not protected: -rw-rw-r-- {root_path}/1_original/2024/2024-10-30_event_1/jpg/DSC_1000.jpg" in caplog.text
 
 
 def test_raw(initial_paths, caplog):
-    create_paths ((
+    test_common.create_paths ((
         (f"{root_path}/0_new/2024-10-30_example_event/jpg/DSC_1237.jpg", 300),
     ))
 
     logging.info(">>> check raw derivatives")
     with pytest.raises(AssertionError) as exception:
-        pwf_check.check(Path(f"{root_path}/0_new/2024-10-30_example_event"), onlylist={"raw",})
+        pwf_check.main(Path(f"{root_path}/0_new/2024-10-30_example_event"), onlylist={"raw",})
 
     assert str(exception.value) == "Found RAW derivatives!"
     text = "Files with same name:\n"
@@ -254,11 +247,11 @@ def test_get_checklist_ignore(caplog):
     logging.info(">>> do not allow dup and path ignore in 0_new")
 
     with pytest.raises(ValueError) as exception:
-        pwf_check.check(Path(f"{root_path}/0_new"), ignorelist={"dup",})
+        pwf_check.main(Path(f"{root_path}/0_new"), ignorelist={"dup",})
     assert str(exception.value) == "Ignoring duplicate violations is not allowed in 0_new!"
 
     with pytest.raises(ValueError) as exception:
-        pwf_check.check(Path(f"{root_path}/0_new"), ignorelist={"path",})
+        pwf_check.main(Path(f"{root_path}/0_new"), ignorelist={"path",})
     assert str(exception.value) == "Ignoring path violations is not allowed in 0_new!"
 
     logging.info(">>> exit when everything is ignored")

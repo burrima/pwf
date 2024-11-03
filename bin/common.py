@@ -5,18 +5,26 @@ from pathlib import Path
 import hashlib
 import logging
 import re
+import os
 
 
 logger = logging.getLogger(__name__)
 
+
 legal_characters = r"\wäöüÄÖÜé~._-"
+
+
+pwf_home_dir=Path(os.getenv("PWF_HOME"))
+
 
 name_replacements = (
     (" ", "_"),
     ("&", "und"),
     ("-_", ""))
 
+
 raw_file_extensions = ("NEF", "NRW", "CR2")
+
 
 valid_file_locations = {
     "NEF": "raw",
@@ -36,6 +44,7 @@ valid_file_locations = {
     "WAV": "audio",
     "mp3": "audio"}
 
+
 fzf_info_text=\
     """
 FZF: Any path can be specified either by by normal means of bash (e.g. with tab
@@ -45,12 +54,14 @@ more details). Paths are automatically bound to the pwf folder structure,
 so this script can be used from anywhere whith consistent behavior.
     """
 
+
 class State(Enum):
     NEW = 0
     ORIGINAL = 1
     LAB = 2
     ALBUM = 3
     PRINT = 4
+
 
 @dataclass(init=False)
 class PwfPath():

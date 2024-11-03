@@ -20,10 +20,11 @@
 # SOFTWARE.
 #
 
+
+from bin import common
 from collections import defaultdict
 from pathlib import Path
 import argparse
-from bin import common
 import copy
 import logging
 import re
@@ -245,8 +246,9 @@ def _get_checklist(pwf_path: common.PwfPath, ignorelist: set=None, onlylist: set
     return checklist
 
 
-def check(path: Path, ignorelist: set=None, onlylist: set=None,
+def main(path: Path, ignorelist: set=None, onlylist: set=None,
           do_fix: bool=False, is_nono: bool=False):
+
     logger.info("pwf-check: ENTRY")
 
     # parse and check path:
@@ -328,6 +330,8 @@ if __name__ == "__main__":
             raise ValueError("Invalid ONLYLIST provided!")
 
     try:
-        check(Path(args.path), ignorelist, onlylist, args.fix, args.nono)
-    except AssertionError as ae:
-        logger.error(str(ae))
+        main(Path(args.path), ignorelist, onlylist, args.fix, args.nono)
+    except ValueError as ex:
+        logger.error(str(ex))
+    except AssertionError as ex:
+        logger.error(str(ex))

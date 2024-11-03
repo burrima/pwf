@@ -8,8 +8,8 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -34,7 +34,7 @@ import stat
 logger = logging.getLogger(__name__)
 
 
-info_text=\
+info_text =\
     """
 IGNORELIST
     cs    ignore wrong checksums
@@ -165,9 +165,9 @@ def _check_raw_derivatives(pwf_path: common.PwfPath):
 
             # be more aggressive in finding the RAW base name by only
             # considering the last 8 characters of the base name (cut away any
-            # prefix).  This matches names like DSC_1234 or IMG_1234, as usually
-            # used by cameras. This is not so robust, but ok for my personal
-            # needs.
+            # prefix).  This matches names like DSC_1234 or IMG_1234, as
+            # usually used by cameras. This is not so robust, but ok for my
+            # personal needs.
             # TODO: make is_aggressive available via parameter
 
             stem = stem[-8:]
@@ -218,8 +218,8 @@ def _check_missing_files(pwf_path: common.PwfPath):
     logger.info("check missing files...")
 
 
-def _get_checklist(pwf_path: common.PwfPath, ignorelist: set=None, 
-                   onlylist: set=None):
+def _get_checklist(pwf_path: common.PwfPath, ignorelist: set = None,
+                   onlylist: set = None):
     if ignorelist is None:
         ignorelist = set()
     if onlylist is None:
@@ -250,8 +250,8 @@ def _get_checklist(pwf_path: common.PwfPath, ignorelist: set=None,
     return checklist
 
 
-def main(path: Path, ignorelist: set=None, onlylist: set=None,
-          do_fix: bool=False, is_nono: bool=False):
+def main(path: Path, ignorelist: set = None, onlylist: set = None,
+         do_fix: bool = False, is_nono: bool = False):
 
     logger.info("pwf-check: ENTRY")
 
@@ -327,7 +327,7 @@ if __name__ == "__main__":
         if not ignorelist.issubset(things_to_check):
             raise ValueError("Invalid IGNORELILST provided!")
 
-    onlylist=None
+    onlylist = None
     if args.onlylist is not None:
         onlylist = set(args.onlylist.split(","))
         if not onlylist.issubset(things_to_check):

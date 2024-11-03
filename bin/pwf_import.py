@@ -8,8 +8,8 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -23,6 +23,7 @@
 
 from bin import common
 from bin import pwf_check
+from bin import pwf_protect
 from pathlib import Path
 import argparse
 import logging
@@ -32,7 +33,7 @@ import shutil
 logger = logging.getLogger(__name__)
 
 
-info_text=\
+info_text =\
     """
 IGNORELIST
     See documentation of pwf_check.py -h
@@ -53,30 +54,35 @@ This script automates the following sequence:
     """ + common.fzf_info_text
 
 
-def main(path: Path, ignorelist: set=None, year: int=None,
-         keep_unprotected: bool=False, is_nono: bool=False):
+def main(path: Path, ignorelist: set = None, year: int = None,
+         keep_unprotected: bool = False, is_nono: bool = False):
 
     logger.info("pwf-import: ENTRY")
 
     # parse and check path:
     pwf_path = common.PwfPath(path)
 
-    logger.debug(f"{pwf_path=}, {ignorelist=}, {year=}, {keep_unprotected=}, {is_nono=}")
+    logger.debug(f"{pwf_path=}, {ignorelist=}, {year=}, " +
+                 "{keep_unprotected=}, {is_nono=}")
 
     if pwf_path.state != common.State.NEW or not pwf_path.is_event_dir:
-        raise ValueError("Invalid path! pwf_import can only run against event dirs in 0_new!")
+        raise ValueError("Invalid path! pwf_import can only run against " +
+                         "event dirs in 0_new!")
 
     if pwf_path.year is None:
         if year is None:
-            raise RuntimeError("Cannot auto-detect year and no year was provided with -y!")
+            raise RuntimeError(
+                "Cannot auto-detect year and no year was provided with -y!")
         if year < 1900 or year > 2100:
-            raise ValueError("Invalid year provided! Must be between 1900 and 2100")
+            raise ValueError(
+                "Invalid year provided! Must be between 1900 and 2100")
         pwf_path.year = year
 
     if ignorelist is not None:
-        if ignorelist != {"raw",}:
+        if ignorelist != {"raw", }:
             raise ValueError("Only allowed ignorelist item is 'raw'!")
-        logger.warning("Using --ignorelist is dangerous and strongly discouraged!")
+        logger.warning(
+            "Using --ignorelist is dangerous and strongly discouraged!")
         # logger.warning("Continue? [yes,no]")
         # val = input()
         # if val != "yes":
@@ -88,7 +94,8 @@ def main(path: Path, ignorelist: set=None, year: int=None,
 
     if is_nono:
         logger.info("Dry-run, would do the following:")
-        logger.info(f"  Move: {pwf_path.path} -> {target_dir}/{pwf_path.event}")
+        logger.info(
+            f"  Move: {pwf_path.path} -> {target_dir}/{pwf_path.event}")
         return
 
     pwf_protect.unprotect(target_dir)
@@ -121,7 +128,7 @@ if __name__ == "__main__":
                         default="INFO")
     parser.add_argument("-y", "--year",
                         type=int,
-                        help="year (if it cannot be auto-parsed by folder naem)")
+                        help="year (if it unable to auto-parse by dir name)")
     parser.add_argument("path", nargs='?', default=Path.cwd())
     args = parser.parse_args()
 
@@ -137,7 +144,7 @@ if __name__ == "__main__":
 
     try:
         main(Path(args.path), ignorelist=ignorelist, year=args.year,
-                  keep_unprotected=args.keep_unprotected, is_nono=args.nono)
+             keep_unprotected=args.keep_unprotected, is_nono=args.nono)
     except ValueError as ex:
         logger.error(str(ex))
     except AssertionError as ex:

@@ -8,8 +8,8 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,6 +22,7 @@
 
 
 from bin import common
+from pathlib import Path
 import argparse
 import logging
 
@@ -29,15 +30,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-info_text=\
+info_text =\
     """
-Protects or unprotects a file or folder provided by PATH. Normally only used against
-1_original/YEAR, but can be used for any PATH.  Calls pwf_check.py before protection is applied
-(unless -f is set).
+Protects or unprotects a file or folder provided by PATH. Normally only used
+against 1_original/YEAR, but can be used for any PATH.  Calls pwf_check.py
+before protection is applied (unless -f is set).
 
-By default, only folders are unprotected, but files remain protected. This allows to add or delete
-files, but modification is still not allowed. With the flag -a all files can be unlocked too (use
-with care!).
+By default, only folders are unprotected, but files remain protected. This
+allows to add or delete files, but modification is still not allowed. With the
+flag -a all files can be unlocked too (use with care!).
     """ + common.fzf_info_text
 
 
@@ -52,7 +53,7 @@ if __name__ == "__main__":
         epilog=info_text)
 
     parser.add_argument("-a", "--all",
-                        help="protect/unprotect all content of a directory (also files)",
+                        help="all content of a directory (also files)",
                         action="store_true")
     parser.add_argument("-f", "--forced",
                         help="don't perform any checks",

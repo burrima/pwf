@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 legal_characters = r"\wäöüÄÖÜé~._-"
 
 
-pwf_home_dir=Path(os.getenv("PWF_HOME"))
+pwf_home_dir = Path(os.getenv("PWF_HOME"))
 
 
 name_replacements = (
@@ -45,11 +45,11 @@ valid_file_locations = {
     "mp3": "audio"}
 
 
-fzf_info_text=\
+fzf_info_text =\
     """
 FZF: Any path can be specified either by by normal means of bash (e.g. with tab
-completion) or by using the FZF tool. Type **<tab> to bring the FZF tool to 
-front where you can select the desired path much faster (see man fzf for 
+completion) or by using the FZF tool. Type **<tab> to bring the FZF tool to
+front where you can select the desired path much faster (see man fzf for
 more details). Paths are automatically bound to the pwf folder structure,
 so this script can be used from anywhere whith consistent behavior.
     """
@@ -87,11 +87,11 @@ class PwfPath():
 
         for part in parts:
 
-            if re.match("\d{4}-\d{2}-\d{2}_.*", part):
+            if re.match(r"\d{4}-\d{2}-\d{2}_.*", part):
                 self.event = part
                 if part == parts[-1]:
                     self.is_event_dir = True
-            elif re.match("\d{4}", part):
+            elif re.match(r"\d{4}", part):
                 self.year = int(part)
             elif self.state is None:
                 match(part):
@@ -123,5 +123,3 @@ def md5sum(path, is_partial=False):
         data = f.read(8000 if is_partial else None)
         md5sum = hashlib.md5(data).hexdigest()
     return md5sum
-
-

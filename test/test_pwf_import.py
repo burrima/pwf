@@ -8,8 +8,8 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -24,12 +24,9 @@
 import pytest
 from bin import pwf_init
 from bin import pwf_import
-from bin import common
 from test import common as test_common
 from pathlib import Path
 import shutil
-import os
-import logging
 
 
 root_path = test_common.root_path
@@ -49,7 +46,8 @@ def initial_paths():
         (f"{root_path}/4_print/2024/", 0),
     ))
 
-    for p in sorted(Path(f"{root_path}/1_original").glob("**/*"), reverse=True):
+    for p in sorted(Path(f"{root_path}/1_original").glob("**/*"),
+                    reverse=True):
         p.chmod(0o555) if p.is_dir() else p.lchmod(0o444)
     for p in sorted(Path(f"{root_path}/3_album").glob("**/*"), reverse=True):
         p.chmod(0o555) if p.is_dir() else p.lchmod(0o444)
@@ -70,4 +68,3 @@ def initial_paths():
 
 def test_normal(initial_paths):
     pwf_import.main(Path(f"{root_path}/0_new/2024-10-30_event_1"))
-

@@ -86,7 +86,8 @@ def _fix_names(pwf_path: common.PwfPath, is_nono: bool):
         logger.info("Dry-run: would do the following:")
 
     files_to_fix = []
-    for p in sorted(list(pwf_path.path.glob("**/*")) + [pwf_path.path], reverse=True):
+    paths = list(pwf_path.path.glob("**/*")) + [pwf_path.path]
+    for p in sorted(paths, reverse=True):
         logger.debug(f"  {p.name}")
         if not re.match(regex, p.name):
             files_to_fix.append(p)
@@ -217,7 +218,8 @@ def _check_missing_files(pwf_path: common.PwfPath):
     logger.info("check missing files...")
 
 
-def _get_checklist(pwf_path: common.PwfPath, ignorelist: set=None, onlylist: set=None):
+def _get_checklist(pwf_path: common.PwfPath, ignorelist: set=None, 
+                   onlylist: set=None):
     if ignorelist is None:
         ignorelist = set()
     if onlylist is None:
@@ -225,9 +227,11 @@ def _get_checklist(pwf_path: common.PwfPath, ignorelist: set=None, onlylist: set
 
     if pwf_path.state == common.State.NEW:
         if "dup" in ignorelist:
-            raise ValueError("Ignoring duplicate violations is not allowed in 0_new!")
+            raise ValueError(
+                "Ignoring duplicate violations is not allowed in 0_new!")
         if "path" in ignorelist:
-            raise ValueError("Ignoring path violations is not allowed in 0_new!")
+            raise ValueError(
+                "Ignoring path violations is not allowed in 0_new!")
 
     if pwf_path.state == common.State.NEW:
         ignorelist.update({"cs", "miss", "prot"})

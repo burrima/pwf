@@ -26,6 +26,9 @@ name_replacements = (
 raw_file_extensions = ("NEF", "NRW", "CR2")
 
 
+jpg_file_extensions = ("jpg", "JPG", "jpeg", "JPEG")
+
+
 valid_file_locations = {
     "NEF": "raw",
     "NRW": "raw",

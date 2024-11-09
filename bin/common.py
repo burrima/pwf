@@ -50,11 +50,12 @@ valid_file_locations = {
 
 fzf_info_text =\
     """
-FZF: Any path can be specified either by by normal means of bash (e.g. with tab
-completion) or by using the FZF tool. Type **<tab> to bring the FZF tool to
-front where you can select the desired path much faster (see man fzf for
-more details). Paths are automatically bound to the pwf folder structure,
-so this script can be used from anywhere whith consistent behavior.
+FZF: Any path can be specified either by by normal means of bash (e.g.
+with tab completion) or by using the FZF tool. Type **<tab> to bring the
+FZF tool to front where you can select the desired path much faster (see
+man fzf for more details). Paths are automatically bound to the pwf
+folder structure, so this script can be used from anywhere whith
+consistent behavior.
     """
 
 

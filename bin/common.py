@@ -29,6 +29,9 @@ raw_file_extensions = ("NEF", "NRW", "CR2")
 jpg_file_extensions = ("jpg", "JPG", "jpeg", "JPEG")
 
 
+type_dirs = ("raw", "jpg", "audio", "video")
+
+
 valid_file_locations = {
     "NEF": "raw",
     "NRW": "raw",
@@ -67,6 +70,28 @@ class State(Enum):
     PRINT = 4
 
 
+state_dirs = {
+    State.NEW: "0_new",
+    State.ORIGINAL: "1_original",
+    State.LAB: "2_lab",
+    State.ALBUM: "3_album",
+    State.PRINT: "4_print",
+}
+
+
+tag_dirs = {
+    "@new": "0_new",
+    "@original": "1_original",
+    "@lab": "2_lab",
+    "@album": "3_album",
+    "@print": "4_print",
+}
+
+
+def path_is_tag(path: Path):
+    return str(path)[0] == "@"
+
+
 @dataclass(init=False)
 class PwfPath():
     path: Path
@@ -74,13 +99,17 @@ class PwfPath():
     is_event_dir: bool = False
     year: int = None
     event: str = None
-    is_file: bool = False
-    filename: str = None
 
-    def __init__(self, path):
+    is_file: bool = False  # deprecated!
+    filename: str = None  # deprecated!
+
+    def __init__(self, path, must_exist: bool=False):
 
         # TODO: required?
         self.path = Path.cwd() if path is None or path == "." else Path(path)
+
+        if must_exist and not path.exists():
+            raise ValueError(f"Path '{str(path)}' does not exist!")
 
         if self.path.is_file():
             self.is_file = True
@@ -96,7 +125,7 @@ class PwfPath():
                 if part == parts[-1]:
                     self.is_event_dir = True
             elif re.match(r"\d{4}", part):
-                self.year = int(part)
+                self.year = int(part[:4])
             elif self.state is None:
                 match(part):
                     case "0_new":

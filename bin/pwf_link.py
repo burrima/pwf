@@ -52,22 +52,118 @@ present in the folder 1_preview/ of the lab event folder. This can be
 bypassed with the option -a.
     """ + common.fzf_info_text
 
+def _tag_to_path(pwf_src_path, tag):
+    """
+    Given a tag, try to determine dst_path automatically.
+    
+    This only works in certain conditions which are checked here. If any is not
+    met, a ValueError is raised.
+    """
+
+    if tag not in common.tag_dirs.keys():
+        raise ValueError(f"Tag '{tag}' is not valid!")
+
+    src = str(pwf_src_path.path)
+    dst = src.replace(common.state_dirs[pwf_src_path.state],
+                      common.tag_dirs[tag])
+
+    if pwf_src_path.state == common.State.LAB:
+        # With tags, only allow to link to 3_final_xy folders!
+        if "3_final_" not in src:
+            raise ValueError("Not allowed to link from this src_path!")
+        dst = dst.replace("3_final_", "")
+
+    if tag == "@lab":
+        # With tags, only allow to create links in 2_original_xy folders,
+        # pointing to 1_original folders!
+        if pwf_src_path.state != common.State.ORIGINAL:
+            raise ValueError("Only allowed to link to 1_original/ folders!")
+        # change destination sub-dir from raw->2_original_raw etc:
+        found = False
+        for ftype in common.type_dirs:
+            if ftype in src:
+                dst = dst.replace(ftype, f"2_original_{ftype}")
+                found = True
+                break
+        if not found:
+            raise ValueError(f"Cannot determine file type dir from src_path!")
+
+    return Path(dst)
+
+
+def _link_to_file(src_path, dst_path, is_forced=False):
+    """
+    Create a link to a single file (or symlink).
+
+    Non-existing dst_path directory tree will be auto-generated.
+    Links will be relative.
+    With is_forced=True, existing files will be overwritten, else ignored.
+    """
+
+    if src_path.is_symlink():
+        src_path = src_path.readlink()
+    if is_forced and dst_path.exists(follow_symlinks=False):
+        dst_path.unlink()
+    try:
+        rel_src = src_path.relative_to(dst_path.parent, walk_up=True)
+        logger.info(f"link: {dst_path} -> {rel_src}")
+        dst_path.symlink_to(rel_src)
+    except FileExistsError:
+        logger.warning(f"Target file exists, not touched!")
+
+
+def _link_to_files_in_dir(src_path, dst_path, is_forced=False, filt=None):
+    """
+    Create symlinks from dst_path to files in src_path directory.
+    """
+
+    dst_path.mkdir(parents=True, exist_ok=True)
+
+    for p in src_path.glob("*.*"):
+        if filt is not None:
+            filt_matches = [f for f in filt if f in p]
+            if len(filt_matches) > 1:
+                logger.warning("More than 1 filter pattern match the file!")
+            elif len(filt_matches) == 0:
+                logger.info(f"Ignore due to not matching filter: {p}")
+                continue
+        dst = dst_path / p.name
+        _link_to_file(p, dst, is_forced)
+
 
 def main(src_path: Path, dst_path: Path, is_all: bool=False,
-         is_interactive: bool=False, is_recursive: bool=False):
+         is_forced: bool=False):
+
+    link_name = None
 
     logger.info("pwf_link: ENTRY")
 
     # parse and check path:
-    pwf_path = common.PwfPath(src_path)
+    pwf_src_path = common.PwfPath(src_path, must_exist=True)
 
-    if str(dst_path) == "@lab":
-        if not pwf_path.is_event_dir:
-            raise ValueError("src_path must be event-dir when dst_path=@lab!")
-        if pwf_path.state != common.State.ORIGINAL:
-            raise ValueError("src_path must be in 1_original/!")
+    if common.path_is_tag(dst_path):
+        dst_path = _tag_to_path(pwf_src_path, str(dst_path))
 
-        dst_path = Path(str(src_path).replace("1_original", "2_lab"))
+    # parse and check path:
+    pwf_dst_path = common.PwfPath(dst_path)
+
+    logger.debug(f"{pwf_src_path=}, {pwf_dst_path=}, {is_all=}, {is_forced=}")
+
+    # TODO: if destination is @lab, then use preview files to filter which
+    # links are created!
+    filt = None
+    # if pwf_dst_path.state == common.State.LAB:
+    #     for p in 
+
+    if pwf_src_path.path.is_dir():
+        _link_to_files_in_dir(
+            pwf_src_path.path, pwf_dst_path.path, is_forced, filt)
+
+    else:
+        if pwf_dst_path.path.is_dir():
+            dst_path = pwf_dst_path.path / pwf_src_path.path.name
+
+        _link_to_file(pwf_src_path.path, pwf_dst_path.path, is_forced)
 
     logger.info("pwf_link: OK")
 
@@ -81,12 +177,12 @@ if __name__ == "__main__":
     parser.add_argument("-a", "--all",
                         help="link all files to lab, indept. of previews",
                         action="store_true")
-    parser.add_argument("-i", "--interactive",
-                        help="prompt whether to remove destinations (y/n)",
+    parser.add_argument("-f", "--forced",
+                        help="overwrite existing links",
                         action="store_true")
-    parser.add_argument("-r", "--recursive",
-                        help="recursively traverse src_path",
-                        action="store_true")
+    parser.add_argument("-l", "--loglevel",
+                        help="log level to use",
+                        default="INFO")
     parser.add_argument("src_path", nargs='?', default=Path.cwd())
     parser.add_argument("dst_path", nargs='?')
     args = parser.parse_args()
@@ -96,9 +192,8 @@ if __name__ == "__main__":
     logger.debug(f"{args=}")
 
     try:
-        main(Path(args.src_path), Path(args.dst_path), is_all, is_interactive,
-             is_recursive)
-    except ValueError as ex:
-        logger.error(str(ex))
-    except AssertionError as ex:
+        main(Path(args.src_path), Path(args.dst_path), args.all, args.forced)
+    except Exception as ex:
+        if args.loglevel.upper() == "DEBUG":
+            raise
         logger.error(str(ex))

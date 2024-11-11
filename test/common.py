@@ -26,8 +26,7 @@ from bin import common
 from pathlib import Path
 
 
-root_path = Path("test/pictures")
-common.pwf_home_dir = root_path
+common.pwf_root_path = Path("test/pictures")
 
 
 def create_paths(extra_paths):

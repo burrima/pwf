@@ -105,8 +105,8 @@ def _relative_to(src: Path, dst: Path) -> Path:
 
     However, this is not going through the root path.
     """
-    rel_src = src.relative_to(common.pwf_home_dir)
-    rel_dst = dst.relative_to(common.pwf_home_dir)
+    rel_src = src.relative_to(common.pwf_root_path)
+    rel_dst = dst.relative_to(common.pwf_root_path)
     rel_root = Path("../" * (len(rel_dst.parents) - 1))
     return rel_root / rel_src
 

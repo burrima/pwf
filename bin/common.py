@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 legal_characters = r"\wäöüÄÖÜé~._-"
 
 
-pwf_home_dir = Path(os.getenv("PWF_HOME"))
+pwf_root_path = Path(os.getenv("PWF_ROOT_PATH"))
 
 
 name_replacements = (

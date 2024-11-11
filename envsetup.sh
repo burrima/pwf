@@ -34,14 +34,14 @@ export PYTHONPATH="$SCRIPT_DIR/bin/:$PYTHONPATH"
 
 # define global variables for pwf scripts
 export PWF_ALLOWED_CHARACTERS='[:alnum:]äöüÄÖÜé~._-'
-export PWF_HOME="$HOME/pictures/own_photos/"
-[[ "$PWF_HOME" =~ ^[//$PWF_ALLOWED_CHARACTERS]*$ ]] || \
-    >&2 echo "ERROR: PWF_HOME path contains illegal characters!"
-# PWF_HOME can be considered save from now on...
+export PWF_ROOT_PATH="$HOME/pictures/own_photos/"
+[[ "$PWF_ROOT_PATH" =~ ^[//$PWF_ALLOWED_CHARACTERS]*$ ]] || \
+    >&2 echo "ERROR: PWF_ROOT_PATH path contains illegal characters!"
+# PWF_ROOT_PATH can be considered save from now on...
 
 # Set up fzf environment:
-export FZF_CTRL_T_COMMAND="find -L $PWF_HOME"
-export FZF_ALT_C_COMMAND="find -L $PWF_HOME -type d"
+export FZF_CTRL_T_COMMAND="find -L $PWF_ROOT_PATH"
+export FZF_ALT_C_COMMAND="find -L $PWF_ROOT_PATH -type d"
 
 # Set up fzf key bindings and fuzzy completion
 eval "$(fzf --bash)"

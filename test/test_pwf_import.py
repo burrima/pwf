@@ -24,47 +24,48 @@
 import pytest
 from bin import pwf_init
 from bin import pwf_import
+from bin import common
 from test import common as test_common
 from pathlib import Path
 import shutil
 
 
-root_path = test_common.root_path
+root = common.pwf_root_path
 
 
 @pytest.fixture
 def initial_paths():
-    pwf_init.create_initial_paths(root_path)
+    pwf_init.create_initial_paths(root)
 
     test_common.create_paths((
-        (f"{root_path}/0_new/2024-10-30_event_1/", 0),
-        (f"{root_path}/0_new/2024-10-30_event_1/jpg/", 0),
-        (f"{root_path}/0_new/2024-10-30_event_1/jpg/DSC_1000.jpg", 10000),
-        (f"{root_path}/0_new/2024-10-30_event_1/jpg/DSC_1001.jpg", 10000),
-        (f"{root_path}/0_new/2024-10-30_event_1/jpg/DSC_1002.jpg", 10000),
-        (f"{root_path}/3_album/2024/", 0),
-        (f"{root_path}/4_print/2024/", 0),
+        (f"{root}/0_new/2024-10-30_event_1/", 0),
+        (f"{root}/0_new/2024-10-30_event_1/jpg/", 0),
+        (f"{root}/0_new/2024-10-30_event_1/jpg/DSC_1000.jpg", 10000),
+        (f"{root}/0_new/2024-10-30_event_1/jpg/DSC_1001.jpg", 10000),
+        (f"{root}/0_new/2024-10-30_event_1/jpg/DSC_1002.jpg", 10000),
+        (f"{root}/3_album/2024/", 0),
+        (f"{root}/4_print/2024/", 0),
     ))
 
-    for p in sorted(Path(f"{root_path}/1_original").glob("**/*"),
+    for p in sorted(Path(f"{root}/1_original").glob("**/*"),
                     reverse=True):
         p.chmod(0o555) if p.is_dir() else p.lchmod(0o444)
-    for p in sorted(Path(f"{root_path}/3_album").glob("**/*"), reverse=True):
+    for p in sorted(Path(f"{root}/3_album").glob("**/*"), reverse=True):
         p.chmod(0o555) if p.is_dir() else p.lchmod(0o444)
-    for p in sorted(Path(f"{root_path}/4_print").glob("**/*"), reverse=True):
+    for p in sorted(Path(f"{root}/4_print").glob("**/*"), reverse=True):
         p.chmod(0o555) if p.is_dir() else p.lchmod(0o444)
 
     yield
 
-    for p in sorted(Path(f"{root_path}/1_original").glob("**/*")):
+    for p in sorted(Path(f"{root}/1_original").glob("**/*")):
         p.chmod(0o775) if p.is_dir() else p.lchmod(0o664)
-    for p in sorted(Path(f"{root_path}/3_album").glob("**/*")):
+    for p in sorted(Path(f"{root}/3_album").glob("**/*")):
         p.chmod(0o775) if p.is_dir() else p.lchmod(0o664)
-    for p in sorted(Path(f"{root_path}/4_print").glob("**/*")):
+    for p in sorted(Path(f"{root}/4_print").glob("**/*")):
         p.chmod(0o775) if p.is_dir() else p.lchmod(0o664)
 
-    shutil.rmtree(Path(root_path), ignore_errors=True)
+    shutil.rmtree(Path(root), ignore_errors=True)
 
 
 def test_normal(initial_paths):
-    pwf_import.main(Path(f"{root_path}/0_new/2024-10-30_event_1/"))
+    pwf_import.main(Path(f"{root}/0_new/2024-10-30_event_1/"))

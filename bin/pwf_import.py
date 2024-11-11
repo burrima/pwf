@@ -90,7 +90,7 @@ def main(path: Path, ignorelist: set = None, year: int = None,
 
     pwf_check.main(path, ignorelist=ignorelist, is_nono=is_nono)
 
-    target_dir = common.pwf_home_dir / "1_original" / str(pwf_path.year)
+    target_dir = common.pwf_root_path / "1_original" / str(pwf_path.year)
 
     if is_nono:
         logger.info("Dry-run, would do the following:")

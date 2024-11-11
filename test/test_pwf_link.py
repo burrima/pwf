@@ -32,7 +32,7 @@ import logging
 import filecmp
 
 
-root = test_common.root_path
+root = common.pwf_root_path
 
 
 @pytest.fixture
@@ -68,6 +68,30 @@ def initial_paths():
         p.chmod(0o775) if p.is_dir() else p.lchmod(0o664)
 
     shutil.rmtree(Path(root), ignore_errors=True)
+
+
+@pytest.fixture
+def prepare_lab():
+    pwf_link.main(Path(f"{root}/1_original/2024/2024-10-30_ev_1/jpg"),
+                  Path("@lab"))
+    pwf_link.main(Path(f"{root}/1_original/2024/2024-10-30_ev_1/raw"),
+                  Path("@lab"))
+
+
+def test__tag_to_path_invalid_tag():
+
+    with pytest.raises(ValueError) as ex:
+        pwf_link._tag_to_path(None, "@asdf")
+    assert str(ex.value) == "Tag '@asdf' is not valid!"
+
+
+def test__tag_to_path_lab():
+    tag = "@lab"
+
+    src = common.PwfPath(f"{root}/1_original/2024/")
+    with pytest.raises(ValueError) as ex:
+        pwf_link._tag_to_path(src, tag)
+    assert str(ex.value) == "Tag '@asdf' is not valid!"
 
 
 def test__relative_to():
@@ -116,6 +140,19 @@ def test_lab_preparation(initial_paths, caplog):
     assert filecmp.cmp(f2s, f2d, shallow=False)
 
 
-def test_lab_orig_to_album(initial_paths):
-    pass
+def test_lab_orig_to_album(initial_paths, prepare_lab):
+
+    logging.info(">>># try to link jpg, raw from lab original to album")
+
+    with pytest.raises(ValueError) as ex:
+        pwf_link.main(
+            Path(f"{root}/2_lab/2024/2024-10-30_ev_1/2_original_jpg"),
+            Path("@album"))
+    assert str(ex.value) == "Not allowed to link from this src_path!"
+
+    with pytest.raises(ValueError) as ex:
+        pwf_link.main(
+            Path(f"{root}/2_lab/2024/2024-10-30_ev_1/2_original_raw"),
+            Path("@album"))
+    assert str(ex.value) == "Not allowed to link from this src_path!"
 

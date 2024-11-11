@@ -1,5 +1,4 @@
 
-from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 import hashlib
@@ -92,28 +91,19 @@ def path_is_tag(path: Path):
     return str(path)[0] == "@"
 
 
-@dataclass(init=False)
-class PwfPath():
-    path: Path
+class PwfPath(Path):
     state: State = None
     is_event_dir: bool = False
     year: int = None
     event: str = None
 
-    is_file: bool = False  # deprecated!
-    filename: str = None  # deprecated!
-
     def __init__(self, path, must_exist: bool=False):
 
-        # TODO: required?
-        self.path = Path.cwd() if path is None or path == "." else Path(path)
+        path = Path(path)  # ensure path is of type Path
+        super().__init__(path)
 
         if must_exist and not path.exists():
             raise ValueError(f"Path '{str(path)}' does not exist!")
-
-        if self.path.is_file():
-            self.is_file = True
-            self.filename = path.name
 
         parts = path.parts
         logger.debug(f"PwfPath: {parts=}")

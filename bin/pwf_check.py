@@ -67,7 +67,7 @@ def _check_names(pwf_path: common.PwfPath):
     regex = rf"^[{common.legal_characters}]+$"
     found_any = False
 
-    for p in [pwf_path.path] + list(pwf_path.path.glob("**/*")):
+    for p in [pwf_path] + list(pwf_path.glob("**/*")):
         logger.debug(f"  {p.name}")
         if not re.match(regex, p.name):
             logger.info(f"Illegal: '{p}'")
@@ -86,7 +86,7 @@ def _fix_names(pwf_path: common.PwfPath, is_nono: bool):
         logger.info("Dry-run: would do the following:")
 
     files_to_fix = []
-    paths = list(pwf_path.path.glob("**/*")) + [pwf_path.path]
+    paths = list(pwf_path.glob("**/*")) + [pwf_path]
     for p in sorted(paths, reverse=True):
         logger.debug(f"  {p.name}")
         if not re.match(regex, p.name):
@@ -99,8 +99,8 @@ def _fix_names(pwf_path: common.PwfPath, is_nono: bool):
         logger.info(f"  '{p.name}' -> '{newname}'")
         if not is_nono:
             new_p = p.replace(p.parent / newname)
-            if p == pwf_path.path:
-                pwf_path.path = new_p
+            if p == pwf_path:
+                pwf_path = new_p
 
 
 def _check_duplicates(pwf_path: common.PwfPath):
@@ -108,7 +108,7 @@ def _check_duplicates(pwf_path: common.PwfPath):
 
     # find potential duplicates by size (much faster!):
     by_size = defaultdict(list)
-    for p in pwf_path.path.glob("**/*"):
+    for p in pwf_path.glob("**/*"):
         if p.is_file():
             by_size[p.stat().st_size].append(p)
     logger.debug(by_size)
@@ -142,7 +142,7 @@ def _check_protection(pwf_path: common.PwfPath):
 
     found_any = False
 
-    for p in [pwf_path.path] + list(pwf_path.path.glob("**/*")):
+    for p in [pwf_path] + list(pwf_path.glob("**/*")):
         mode = p.stat(follow_symlinks=False).st_mode
         ogo_mode = oct(mode)[-3:]
         is_locked = ((int(ogo_mode, 16) & 0x222) == 0)
@@ -160,7 +160,7 @@ def _check_raw_derivatives(pwf_path: common.PwfPath):
     found_any = False
 
     for ext in common.raw_file_extensions:
-        for p in pwf_path.path.glob(f"**/*.{ext}"):
+        for p in pwf_path.glob(f"**/*.{ext}"):
             stem = p.stem
 
             # be more aggressive in finding the RAW base name by only
@@ -172,7 +172,7 @@ def _check_raw_derivatives(pwf_path: common.PwfPath):
 
             stem = stem[-8:]
 
-            files_with_same_stem = list(pwf_path.path.glob(f"**/*{stem}*"))
+            files_with_same_stem = list(pwf_path.glob(f"**/*{stem}*"))
             if len(files_with_same_stem) > 1:
                 files = "\n  ".join(
                     [str(p) for p in sorted(files_with_same_stem)])
@@ -192,7 +192,7 @@ def _check_paths(pwf_path: common.PwfPath):
     found_any = False
     n_ignored = 0
 
-    for p in pwf_path.path.glob("**/*"):
+    for p in pwf_path.glob("**/*"):
         if not p.is_file():
             continue
 
@@ -270,7 +270,7 @@ def main(path: Path, ignorelist: set = None, onlylist: set = None,
             if is_nono:
                 return
             # update pwf_path because path might have changed:
-            pwf_path = common.PwfPath(pwf_path.path)
+            pwf_path = common.PwfPath(pwf_path)
         _check_names(pwf_path)
 
     if "dup" in checklist:

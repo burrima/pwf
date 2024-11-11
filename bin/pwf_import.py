@@ -95,13 +95,13 @@ def main(path: Path, ignorelist: set = None, year: int = None,
     if is_nono:
         logger.info("Dry-run, would do the following:")
         logger.info(
-            f"  Move: {pwf_path.path} -> {target_dir}/{pwf_path.event}")
+            f"  Move: {pwf_path} -> {target_dir}/{pwf_path.event}")
         return
 
     pwf_protect.unprotect(target_dir)
 
-    logger.info(f"  Move: {pwf_path.path} -> {target_dir}/")
-    shutil.move(pwf_path.path, target_dir)
+    logger.info(f"  Move: {pwf_path} -> {target_dir}/")
+    shutil.move(pwf_path, target_dir)
 
     if not keep_unprotected:
         pwf_protect.protect(target_dir, is_forced=True)

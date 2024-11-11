@@ -63,7 +63,7 @@ def _tag_to_path(pwf_src_path, tag):
     if tag not in common.tag_dirs.keys():
         raise ValueError(f"Tag '{tag}' is not valid!")
 
-    src = str(pwf_src_path.path)
+    src = str(pwf_src_path)
     dst = src.replace(common.state_dirs[pwf_src_path.state],
                       common.tag_dirs[tag])
 
@@ -175,15 +175,15 @@ def main(src_path: Path, dst_path: Path, is_all: bool=False,
     # if pwf_dst_path.state == common.State.LAB:
     #     for p in 
 
-    if pwf_src_path.path.is_dir():
+    if pwf_src_path.is_dir():
         _link_to_files_in_dir(
-            pwf_src_path.path, pwf_dst_path.path, is_forced, filt)
+            pwf_src_path, pwf_dst_path, is_forced, filt)
 
     else:
-        if pwf_dst_path.path.is_dir():
-            dst_path = pwf_dst_path.path / pwf_src_path.path.name
+        if pwf_dst_path.is_dir():
+            dst_path = pwf_dst_path / pwf_src_path.name
 
-        _link_to_file(pwf_src_path.path, pwf_dst_path.path, is_forced)
+        _link_to_file(pwf_src_path, pwf_dst_path, is_forced)
 
     logger.info("pwf_link: OK")
 

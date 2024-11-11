@@ -91,6 +91,26 @@ def _tag_to_path(pwf_src_path, tag):
     return Path(dst)
 
 
+def _relative_to(src: Path, dst: Path) -> Path:
+    """
+    Returns the relative path from dst to src.
+
+    The relative path is build in 2 steps:
+        * relative path up to root (../../...)
+        * relative path from root to src
+
+    Python >=3.12 allows the following:
+
+        return src.relative_to(dst.parent, walk_up=True)
+
+    However, this is not going through the root path.
+    """
+    rel_src = src.relative_to(common.pwf_home_dir)
+    rel_dst = dst.relative_to(common.pwf_home_dir)
+    rel_root = Path("../" * (len(rel_dst.parents) - 1))
+    return rel_root / rel_src
+
+
 def _link_to_file(src_path, dst_path, is_forced=False):
     """
     Create a link to a single file (or symlink).
@@ -105,7 +125,7 @@ def _link_to_file(src_path, dst_path, is_forced=False):
     if is_forced and dst_path.exists(follow_symlinks=False):
         dst_path.unlink()
     try:
-        rel_src = src_path.relative_to(dst_path.parent, walk_up=True)
+        rel_src = _relative_to(src_path, dst_path)
         logger.info(f"link: {dst_path} -> {rel_src}")
         dst_path.symlink_to(rel_src)
     except FileExistsError:

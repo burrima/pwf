@@ -174,7 +174,8 @@ def _check_raw_derivatives(pwf_path: common.PwfPath):
 
             files_with_same_stem = list(pwf_path.path.glob(f"**/*{stem}*"))
             if len(files_with_same_stem) > 1:
-                files = "\n  ".join([str(p) for p in files_with_same_stem])
+                files = "\n  ".join(
+                    [str(p) for p in sorted(files_with_same_stem)])
                 logger.info(f"Files with same name:\n  {files}")
                 found_any = True
 

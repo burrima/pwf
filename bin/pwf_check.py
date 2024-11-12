@@ -61,13 +61,13 @@ Checks can be disabled individually, see OPTIONS above.
 things_to_check = {"cs", "dup", "miss", "name", "path", "prot", "raw"}
 
 
-def _check_names(pwf_path: common.PwfPath):
+def _check_names(path: Path):
     logger.info("check names...")
 
     regex = rf"^[{common.legal_characters}]+$"
     found_any = False
 
-    for p in [pwf_path] + list(pwf_path.glob("**/*")):
+    for p in [path] + list(path.glob("**/*")):
         logger.debug(f"  {p.name}")
         if not re.match(regex, p.name):
             logger.info(f"Illegal: '{p}'")
@@ -77,7 +77,7 @@ def _check_names(pwf_path: common.PwfPath):
         raise AssertionError("Found illegal chars in file or folder names!")
 
 
-def _fix_names(pwf_path: common.PwfPath, is_nono: bool):
+def _fix_names(path: Path, is_nono: bool):
     logger.info("fix names...")
 
     regex = rf"^[{common.legal_characters}]+$"
@@ -86,7 +86,7 @@ def _fix_names(pwf_path: common.PwfPath, is_nono: bool):
         logger.info("Dry-run: would do the following:")
 
     files_to_fix = []
-    paths = list(pwf_path.glob("**/*")) + [pwf_path]
+    paths = list(path.glob("**/*")) + [path]
     for p in sorted(paths, reverse=True):
         logger.debug(f"  {p.name}")
         if not re.match(regex, p.name):
@@ -96,19 +96,19 @@ def _fix_names(pwf_path: common.PwfPath, is_nono: bool):
         newname = p.name
         for r in common.name_replacements:
             newname = newname.replace(r[0], r[1])
-        logger.info(f"  '{p.name}' -> '{newname}'")
+        logger.info(f"  '{p}' -> '{newname}'")
         if not is_nono:
             new_p = p.replace(p.parent / newname)
-            if p == pwf_path:
-                pwf_path = new_p
+            if p == path:
+                path = new_p
 
 
-def _check_duplicates(pwf_path: common.PwfPath):
+def _check_duplicates(path: Path):
     logger.info("check duplicates...")
 
     # find potential duplicates by size (much faster!):
     by_size = defaultdict(list)
-    for p in pwf_path.glob("**/*"):
+    for p in path.glob("**/*"):
         if p.is_file():
             by_size[p.stat().st_size].append(p)
     logger.debug(by_size)
@@ -137,12 +137,12 @@ def _check_duplicates(pwf_path: common.PwfPath):
         raise AssertionError("Found duplicate files!")
 
 
-def _check_protection(pwf_path: common.PwfPath):
+def _check_protection(path: Path):
     logger.info("check protection...")
 
     found_any = False
 
-    for p in [pwf_path] + list(pwf_path.glob("**/*")):
+    for p in [path] + list(path.glob("**/*")):
         mode = p.stat(follow_symlinks=False).st_mode
         ogo_mode = oct(mode)[-3:]
         is_locked = ((int(ogo_mode, 16) & 0x222) == 0)
@@ -154,13 +154,13 @@ def _check_protection(pwf_path: common.PwfPath):
         raise AssertionError("Found unprotected files or directories!")
 
 
-def _check_raw_derivatives(pwf_path: common.PwfPath):
+def _check_raw_derivatives(path: Path):
     logger.info("check raw derivatives...")
 
     found_any = False
 
     for ext in common.raw_file_extensions:
-        for p in pwf_path.glob(f"**/*.{ext}"):
+        for p in path.glob(f"**/*.{ext}"):
             stem = p.stem
 
             # be more aggressive in finding the RAW base name by only
@@ -172,7 +172,7 @@ def _check_raw_derivatives(pwf_path: common.PwfPath):
 
             stem = stem[-8:]
 
-            files_with_same_stem = list(pwf_path.glob(f"**/*{stem}*"))
+            files_with_same_stem = list(path.glob(f"**/*{stem}*"))
             if len(files_with_same_stem) > 1:
                 files = "\n  ".join(
                     [str(p) for p in sorted(files_with_same_stem)])
@@ -183,7 +183,7 @@ def _check_raw_derivatives(pwf_path: common.PwfPath):
         raise AssertionError("Found RAW derivatives!")
 
 
-def _check_paths(pwf_path: common.PwfPath):
+def _check_paths(path: Path):
     """
     Asserts that files with certain endings are only in allowed folders.
     """
@@ -192,7 +192,7 @@ def _check_paths(pwf_path: common.PwfPath):
     found_any = False
     n_ignored = 0
 
-    for p in pwf_path.glob("**/*"):
+    for p in path.glob("**/*"):
         if not p.is_file():
             continue
 
@@ -211,22 +211,22 @@ def _check_paths(pwf_path: common.PwfPath):
         raise AssertionError("Found files in wrong locations!")
 
 
-def _check_checksums(pwf_path: common.PwfPath):
+def _check_checksums(path: Path):
     logger.info("check checksums...")
 
 
-def _check_missing_files(pwf_path: common.PwfPath):
+def _check_missing_files(path: Path):
     logger.info("check missing files...")
 
 
-def _get_checklist(pwf_path: common.PwfPath, ignorelist: set = None,
-                   onlylist: set = None):
+def _get_checklist(path: Path, ignorelist: set = None, onlylist: set = None):
     if ignorelist is None:
         ignorelist = set()
     if onlylist is None:
         onlylist = set()
 
-    if pwf_path.state == common.State.NEW:
+    path_info = common.parse_path(path)
+    if path_info.state == common.State.NEW:
         if "dup" in ignorelist:
             raise ValueError(
                 "Ignoring duplicate violations is not allowed in 0_new!")
@@ -234,9 +234,9 @@ def _get_checklist(pwf_path: common.PwfPath, ignorelist: set = None,
             raise ValueError(
                 "Ignoring path violations is not allowed in 0_new!")
 
-    if pwf_path.state == common.State.NEW:
+    if path_info.state == common.State.NEW:
         ignorelist.update({"cs", "miss", "prot"})
-    elif pwf_path.state == common.State.LAB:
+    elif path_info.state == common.State.LAB:
         ignorelist.update({"cs", "miss", "prot", "path", "raw"})
 
     checklist = copy.copy(things_to_check) if len(onlylist) == 0 else onlylist
@@ -257,39 +257,37 @@ def main(path: Path, ignorelist: set = None, onlylist: set = None,
     logger.info("pwf_check: ENTRY")
 
     # parse and check path:
-    pwf_path = common.PwfPath(path)
+    common.parse_path(path)
 
     # parse ignorelist and onlylist:
-    checklist = _get_checklist(pwf_path, ignorelist, onlylist)
+    checklist = _get_checklist(path, ignorelist, onlylist)
 
-    logger.debug(f"{pwf_path=}, {checklist=}, {do_fix=}, {is_nono=}")
+    logger.debug(f"{path=}, {checklist=}, {do_fix=}, {is_nono=}")
 
     if "name" in checklist:
         if do_fix:
-            _fix_names(pwf_path, is_nono)
+            _fix_names(path, is_nono)
             if is_nono:
                 return
-            # update pwf_path because path might have changed:
-            pwf_path = common.PwfPath(pwf_path)
-        _check_names(pwf_path)
+        _check_names(path)
 
     if "dup" in checklist:
-        _check_duplicates(pwf_path)
+        _check_duplicates(path)
 
     if "prot" in checklist:
-        _check_protection(pwf_path)
+        _check_protection(path)
 
     if "raw" in checklist:
-        _check_raw_derivatives(pwf_path)
+        _check_raw_derivatives(path)
 
     if "path" in checklist:
-        _check_paths(pwf_path)
+        _check_paths(path)
 
     if "cs" in checklist:
-        _check_checksums(pwf_path)
+        _check_checksums(path)
 
     if "miss" in checklist:
-        _check_missing_files(pwf_path)
+        _check_missing_files(path)
 
     logger.info("pwf_check: OK")
 

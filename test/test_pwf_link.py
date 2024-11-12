@@ -156,3 +156,21 @@ def test_lab_orig_to_album(initial_paths, prepare_lab):
             Path("@album"))
     assert str(ex.value) == "Not allowed to link from this src_path!"
 
+
+def test_lab_final_to_album(initial_paths, prepare_lab):
+    test_common.create_paths((
+        (f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_200.jpg", 100),
+        (f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_201.jpg", 200),
+        (f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_audio/DSC_202.mp3", 210),
+        (f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_video/DSC_203.mpeg", 220),
+    ))
+
+    pwf_link.main(
+        Path(f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg"),
+        Path("@album"))
+    pwf_link.main(
+        Path(f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_audio"),
+        Path("@album"))
+    pwf_link.main(
+        Path(f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_video"),
+        Path("@album"))

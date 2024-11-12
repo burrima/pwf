@@ -146,8 +146,11 @@ def test_fix_name_nono(initial_paths, caplog):
                    do_fix=True, is_nono=True)
 
     assert "Dry-run: would do the following:" in caplog.text
-    assert "'my file.jpg' -> 'my_file.jpg'" in caplog.text
-    text = "'2024-10-30_event & space' -> '2024-10-30_event_und_space'"
+    text = f"'{root}/0_new/2024-10-30_event & space/jpg/my file.jpg' ->" +\
+        " 'my_file.jpg'"
+    assert text in caplog.text
+    text = f"'{root}/0_new/2024-10-30_event & space' ->" +\
+        " '2024-10-30_event_und_space'"
     assert text in caplog.text
 
 
@@ -163,8 +166,11 @@ def test_fix_name(initial_paths, caplog):
         Path(f"{root}/0_new"), onlylist={"name", }, do_fix=True)
 
     assert "Dry-run: would do the following:" not in caplog.text
-    assert "'my file.jpg' -> 'my_file.jpg'" in caplog.text
-    text = "'2024-10-30_event & space' -> '2024-10-30_event_und_space'"
+    text = f"'{root}/0_new/2024-10-30_event & space/jpg/my file.jpg' ->" +\
+        " 'my_file.jpg'"
+    assert text in caplog.text
+    text = f"'{root}/0_new/2024-10-30_event & space' ->" +\
+        " '2024-10-30_event_und_space'"
     assert text in caplog.text
 
 
@@ -230,27 +236,27 @@ def test_get_checklist_normal():
         "cs", "dup", "miss", "name", "path", "prot", "raw"}
 
     logging.info(">>> assert default checklist for 0_new")
-    p = common.PwfPath(Path(f"{root}/0_new/"))
+    p = Path(f"{root}/0_new/")
     cl = pwf_check._get_checklist(p)
     assert cl == {"name", "raw", "path", "dup"}
 
     logging.info(">>> assert default checklist for 1_original")
-    p = common.PwfPath(Path(f"{root}/1_original/"))
+    p = Path(f"{root}/1_original/")
     cl = pwf_check._get_checklist(p)
     assert cl == pwf_check.things_to_check
 
     logging.info(">>> assert default checklist for 2_lab")
-    p = common.PwfPath(Path(f"{root}/2_lab/"))
+    p = Path(f"{root}/2_lab/")
     cl = pwf_check._get_checklist(p)
     assert cl == {"name", "dup"}
 
     logging.info(">>> assert default checklist for 3_album")
-    p = common.PwfPath(Path(f"{root}/3_album/"))
+    p = Path(f"{root}/3_album/")
     cl = pwf_check._get_checklist(p)
     assert cl == pwf_check.things_to_check
 
     logging.info(">>> assert default checklist for 4_print")
-    p = common.PwfPath(Path(f"{root}/4_print/"))
+    p = Path(f"{root}/4_print/")
     cl = pwf_check._get_checklist(p)
     assert cl == pwf_check.things_to_check
 
@@ -269,7 +275,7 @@ def test_get_checklist_ignore(caplog):
     assert str(ex.value) == "Ignoring path violations is not allowed in 0_new!"
 
     logging.info(">>> exit when everything is ignored")
-    p = common.PwfPath(Path(f"{root}/1_original/"))
+    p = Path(f"{root}/1_original/")
     with pytest.raises(ValueError) as ex:
         pwf_check._get_checklist(p, ignorelist=pwf_check.things_to_check)
     assert str(ex.value) == "Everything ignored, nothing to check!"
@@ -281,7 +287,7 @@ def test_get_checklist_ignore(caplog):
 
 def test_get_checklist_ignore_name(caplog):
     logging.info(">>> print warning when name check is ignored")
-    p = common.PwfPath(Path(f"{root}/1_original/"))
+    p = Path(f"{root}/1_original/")
     cl = pwf_check._get_checklist(p, ignorelist={"name"})
     assert cl == {"cs", "dup", "miss", "path", "prot", "raw"}
     assert "Ignoring name violations is strongly discouraged!" in caplog.text

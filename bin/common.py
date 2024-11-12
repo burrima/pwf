@@ -91,51 +91,49 @@ def path_is_tag(path: Path):
     return str(path)[0] == "@"
 
 
-class PwfPath(Path):
+class Pwf_path_info():
     state: State = None
     is_event_dir: bool = False
     year: int = None
     event: str = None
 
-    def __init__(self, path, must_exist: bool=False):
 
-        path = Path(path)  # ensure path is of type Path
-        super().__init__(path)
+def parse_path(path: Path) -> Pwf_path_info:
+    info = Pwf_path_info()
 
-        if must_exist and not path.exists():
-            raise ValueError(f"Path '{str(path)}' does not exist!")
+    parts = path.parts
+    logger.debug(f"parse_path: {parts=}")
 
-        parts = path.parts
-        logger.debug(f"PwfPath: {parts=}")
+    for part in parts:
 
-        for part in parts:
+        if re.match(r"\d{4}-\d{2}-\d{2}_.*", part):
+            info.event = part
+            if part == parts[-1]:
+                info.is_event_dir = True
+        elif re.match(r"\d{4}", part):
+            info.year = int(part[:4])
+        elif info.state is None:
+            match(part):
+                case "0_new":
+                    info.state = State.NEW
+                case "1_original":
+                    info.state = State.ORIGINAL
+                case "2_lab":
+                    info.state = State.LAB
+                case "3_album":
+                    info.state = State.ALBUM
+                case "4_print":
+                    info.state = State.PRINT
+                case _:
+                    info.state = None
 
-            if re.match(r"\d{4}-\d{2}-\d{2}_.*", part):
-                self.event = part
-                if part == parts[-1]:
-                    self.is_event_dir = True
-            elif re.match(r"\d{4}", part):
-                self.year = int(part[:4])
-            elif self.state is None:
-                match(part):
-                    case "0_new":
-                        self.state = State.NEW
-                    case "1_original":
-                        self.state = State.ORIGINAL
-                    case "2_lab":
-                        self.state = State.LAB
-                    case "3_album":
-                        self.state = State.ALBUM
-                    case "4_print":
-                        self.state = State.PRINT
-                    case _:
-                        self.state = None
+    if info.year is None and info.event is not None:
+        info.year = int(info.event[:4])
 
-        if self.year is None and self.event is not None:
-            self.year = int(self.event[:4])
+    if info.state is None:
+        raise ValueError("Cannot parse state from path!")
 
-        if self.state is None:
-            raise ValueError("Cannot parse state from path!")
+    return info
 
 
 def md5sum(path, is_partial=False):

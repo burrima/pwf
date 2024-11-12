@@ -52,7 +52,7 @@ present in the folder 1_preview/ of the lab event folder. This can be
 bypassed with the option -a.
     """ + common.fzf_info_text
 
-def _tag_to_path(pwf_src_path, tag):
+def _tag_to_path(src_path: Path, tag: str) -> Path:
     """
     Given a tag, try to determine dst_path automatically.
     
@@ -63,11 +63,12 @@ def _tag_to_path(pwf_src_path, tag):
     if tag not in common.tag_dirs.keys():
         raise ValueError(f"Tag '{tag}' is not valid!")
 
-    src = str(pwf_src_path)
-    dst = src.replace(common.state_dirs[pwf_src_path.state],
+    src = str(src_path)
+    src_info = common.parse_path(src_path)
+    dst = src.replace(common.state_dirs[src_info.state],
                       common.tag_dirs[tag])
 
-    if pwf_src_path.state == common.State.LAB:
+    if src_info.state == common.State.LAB:
         # With tags, only allow to link to 3_final_xy folders!
         if "3_final_" not in src:
             raise ValueError("Not allowed to link from this src_path!")
@@ -76,7 +77,7 @@ def _tag_to_path(pwf_src_path, tag):
     if tag == "@lab":
         # With tags, only allow to create links in 2_original_xy folders,
         # pointing to 1_original folders!
-        if pwf_src_path.state != common.State.ORIGINAL:
+        if src_info.state != common.State.ORIGINAL:
             raise ValueError("Only allowed to link to 1_original/ folders!")
         # change destination sub-dir from raw->2_original_raw etc:
         found = False
@@ -111,7 +112,7 @@ def _relative_to(src: Path, dst: Path) -> Path:
     return rel_root / rel_src
 
 
-def _link_to_file(src_path, dst_path, is_forced=False):
+def _link_to_file(src_path: Path, dst_path: Path, is_forced: bool=False):
     """
     Create a link to a single file (or symlink).
 
@@ -132,7 +133,8 @@ def _link_to_file(src_path, dst_path, is_forced=False):
         logger.warning(f"Target file exists, not touched!")
 
 
-def _link_to_files_in_dir(src_path, dst_path, is_forced=False, filt=None):
+def _link_to_files_in_dir(src_path: Path, dst_path: Path,
+                          is_forced: bool=False, filt: set=None):
     """
     Create symlinks from dst_path to files in src_path directory.
     """
@@ -159,31 +161,32 @@ def main(src_path: Path, dst_path: Path, is_all: bool=False,
     logger.info("pwf_link: ENTRY")
 
     # parse and check path:
-    pwf_src_path = common.PwfPath(src_path, must_exist=True)
+    src_info = common.parse_path(src_path)
+    if not src_path.exists():
+        raise ValueError("Path '{str(path)}' does not exist!")
 
     if common.path_is_tag(dst_path):
-        dst_path = _tag_to_path(pwf_src_path, str(dst_path))
+        dst_path = _tag_to_path(src_path, str(dst_path))
 
     # parse and check path:
-    pwf_dst_path = common.PwfPath(dst_path)
+    dst_info = common.parse_path(src_path)
 
-    logger.debug(f"{pwf_src_path=}, {pwf_dst_path=}, {is_all=}, {is_forced=}")
+    logger.debug(f"{src_path=}, {dst_path=}, {is_all=}, {is_forced=}")
 
     # TODO: if destination is @lab, then use preview files to filter which
     # links are created!
     filt = None
-    # if pwf_dst_path.state == common.State.LAB:
+    # if dst_info.state == common.State.LAB:
     #     for p in 
 
-    if pwf_src_path.is_dir():
-        _link_to_files_in_dir(
-            pwf_src_path, pwf_dst_path, is_forced, filt)
+    if src_path.is_dir():
+        _link_to_files_in_dir(src_path, dst_path, is_forced, filt)
 
     else:
-        if pwf_dst_path.is_dir():
-            dst_path = pwf_dst_path / pwf_src_path.name
+        if dst_path.is_dir():
+            dst_path = dst_path / src_path.name
 
-        _link_to_file(pwf_src_path, pwf_dst_path, is_forced)
+        _link_to_file(src_path, dst_path, is_forced)
 
     logger.info("pwf_link: OK")
 

@@ -71,7 +71,7 @@ def main(src_path: Path, dst_path: Path, is_recursive: bool = False,
     logger.info("pwf_extract_previews: ENTRY")
 
     # parse and check path:
-    # pwf_path = common.PwfPath(path)
+    common.parse_path(path)
 
     if dst_path is None:
         dst_path = src_path.parent

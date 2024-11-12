@@ -60,23 +60,23 @@ def main(path: Path, ignorelist: set = None, year: int = None,
     logger.info("pwf_import: ENTRY")
 
     # parse and check path:
-    pwf_path = common.PwfPath(path)
+    path_info = common.parse_path(path)
 
-    logger.debug(f"{pwf_path=}, {ignorelist=}, {year=}, " +
+    logger.debug(f"{path=}, {ignorelist=}, {year=}, " +
                  "{keep_unprotected=}, {is_nono=}")
 
-    if pwf_path.state != common.State.NEW or not pwf_path.is_event_dir:
+    if path_info.state != common.State.NEW or not path_info.is_event_dir:
         raise ValueError("Invalid path! pwf_import can only run against " +
                          "event dirs in 0_new!")
 
-    if pwf_path.year is None:
+    if path_info.year is None:
         if year is None:
             raise RuntimeError(
                 "Cannot auto-detect year and no year was provided with -y!")
         if year < 1900 or year > 2100:
             raise ValueError(
                 "Invalid year provided! Must be between 1900 and 2100")
-        pwf_path.year = year
+        path_info.year = year
 
     if ignorelist is not None:
         if ignorelist != {"raw", }:
@@ -90,18 +90,18 @@ def main(path: Path, ignorelist: set = None, year: int = None,
 
     pwf_check.main(path, ignorelist=ignorelist, is_nono=is_nono)
 
-    target_dir = common.pwf_root_path / "1_original" / str(pwf_path.year)
+    target_dir = common.pwf_root_path / "1_original" / str(path_info.year)
 
     if is_nono:
         logger.info("Dry-run, would do the following:")
         logger.info(
-            f"  Move: {pwf_path} -> {target_dir}/{pwf_path.event}")
+            f"  Move: {path} -> {target_dir}/{path_info.event}")
         return
 
     pwf_protect.unprotect(target_dir)
 
-    logger.info(f"  Move: {pwf_path} -> {target_dir}/")
-    shutil.move(pwf_path, target_dir)
+    logger.info(f"  Move: {path} -> {target_dir}/")
+    shutil.move(path, target_dir)
 
     if not keep_unprotected:
         pwf_protect.protect(target_dir, is_forced=True)

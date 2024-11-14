@@ -65,6 +65,10 @@ def _tag_to_path(src_path: Path, tag: str) -> Path:
 
     src = str(src_path)
     src_info = common.parse_path(src_path)
+
+    if src_info.event is None:
+        raise ValueError("Linking to tag only allowed from within event dirs!")
+
     dst = src.replace(common.state_dirs[src_info.state],
                       common.tag_dirs[tag])
 
@@ -72,6 +76,8 @@ def _tag_to_path(src_path: Path, tag: str) -> Path:
         # With tags, only allow to link to 3_final_xy folders!
         if "3_final_" not in src:
             raise ValueError("Not allowed to link from this src_path!")
+        if tag not in ("@album", "@print"):
+            raise ValueError("Not allowed to link to this tag!")
         dst = dst.replace("3_final_", "")
 
     if tag == "@lab":

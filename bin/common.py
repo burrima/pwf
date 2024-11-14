@@ -78,6 +78,9 @@ state_dirs = {
 }
 
 
+tags = ("@new", "@original", "@lab", "@album", "@print")
+
+
 tag_dirs = {
     "@new": "0_new",
     "@original": "1_original",

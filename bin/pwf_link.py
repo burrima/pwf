@@ -22,13 +22,9 @@
 
 
 from bin import common
-from collections import defaultdict
 from pathlib import Path
 import argparse
-import copy
 import logging
-import re
-import stat
 
 
 logger = logging.getLogger(__name__)
@@ -52,22 +48,23 @@ present in the folder 1_preview/ of the lab event folder. This can be
 bypassed with the option -a.
     """ + common.fzf_info_text
 
+
 def _tag_to_path(src_path: Path, tag: str) -> Path:
     """
     Given a tag, try to determine dst_path automatically.
-    
+
     This only works in certain conditions which are checked here. If any is not
     met, a ValueError is raised.
     """
 
-    if tag not in common.tag_dirs.keys():
-        raise ValueError(f"Tag '{tag}' is not valid!")
-
     src = str(src_path)
     src_info = common.parse_path(src_path)
 
+    if tag not in common.tags:
+        raise ValueError("Invalid tag provided!")
+
     if src_info.event is None:
-        raise ValueError("Linking to tag only allowed from within event dirs!")
+        raise ValueError("Linking to tag only allowed from within event dir!")
 
     dst = src.replace(common.state_dirs[src_info.state],
                       common.tag_dirs[tag])
@@ -76,8 +73,6 @@ def _tag_to_path(src_path: Path, tag: str) -> Path:
         # With tags, only allow to link to 3_final_xy folders!
         if "3_final_" not in src:
             raise ValueError("Not allowed to link from this src_path!")
-        if tag not in ("@album", "@print"):
-            raise ValueError("Not allowed to link to this tag!")
         dst = dst.replace("3_final_", "")
 
     if tag == "@lab":
@@ -85,17 +80,36 @@ def _tag_to_path(src_path: Path, tag: str) -> Path:
         # pointing to 1_original folders!
         if src_info.state != common.State.ORIGINAL:
             raise ValueError("Only allowed to link to 1_original/ folders!")
+        if src_info.file_type is None:
+            raise ValueError("Cannot determine file type dir from src_path!")
         # change destination sub-dir from raw->2_original_raw etc:
-        found = False
         for ftype in common.type_dirs:
             if ftype in src:
                 dst = dst.replace(ftype, f"2_original_{ftype}")
-                found = True
                 break
-        if not found:
-            raise ValueError(f"Cannot determine file type dir from src_path!")
 
     return Path(dst)
+
+
+def _check_is_allowed(src_path: Path, dst_path: Path):
+
+    allowed_state_links = (  # (src, dst)
+        (common.State.ORIGINAL, common.State.LAB),
+        (common.State.ORIGINAL, common.State.ALBUM),
+        (common.State.ORIGINAL, common.State.PRINT),
+        (common.State.LAB, common.State.ALBUM),
+        (common.State.LAB, common.State.PRINT),
+    )
+
+    src_info = common.parse_path(src_path)
+    dst_info = common.parse_path(dst_path)
+
+    if not src_path.exists():
+        raise ValueError("src_path does not exist!")
+
+    if (src_info.state, dst_info.state) not in allowed_state_links:
+        err = f"Not allowed to link from {src_info.state} to {dst_info.state}!"
+        raise ValueError(err)
 
 
 def _relative_to(src: Path, dst: Path) -> Path:
@@ -118,7 +132,7 @@ def _relative_to(src: Path, dst: Path) -> Path:
     return rel_root / rel_src
 
 
-def _link_to_file(src_path: Path, dst_path: Path, is_forced: bool=False):
+def _link_to_file(src_path: Path, dst_path: Path, is_forced: bool = False):
     """
     Create a link to a single file (or symlink).
 
@@ -136,11 +150,11 @@ def _link_to_file(src_path: Path, dst_path: Path, is_forced: bool=False):
         logger.info(f"link: {dst_path} -> {rel_src}")
         dst_path.symlink_to(rel_src)
     except FileExistsError:
-        logger.warning(f"Target file exists, not touched!")
+        logger.warning("Target file exists, not touched!")
 
 
 def _link_to_files_in_dir(src_path: Path, dst_path: Path,
-                          is_forced: bool=False, filt: set=None):
+                          is_forced: bool = False, filt: set = None):
     """
     Create symlinks from dst_path to files in src_path directory.
     """
@@ -159,23 +173,19 @@ def _link_to_files_in_dir(src_path: Path, dst_path: Path,
         _link_to_file(p, dst, is_forced)
 
 
-def main(src_path: Path, dst_path: Path, is_all: bool=False,
-         is_forced: bool=False):
-
-    link_name = None
+def main(src_path: Path, dst_path: Path, is_all: bool = False,
+         is_forced: bool = False):
 
     logger.info("pwf_link: ENTRY")
 
     # parse and check path:
-    src_info = common.parse_path(src_path)
-    if not src_path.exists():
-        raise ValueError("Path '{str(path)}' does not exist!")
-
     if common.path_is_tag(dst_path):
         dst_path = _tag_to_path(src_path, str(dst_path))
 
+    _check_is_allowed(src_path, dst_path)
+
     # parse and check path:
-    dst_info = common.parse_path(src_path)
+    common.parse_path(dst_path)
 
     logger.debug(f"{src_path=}, {dst_path=}, {is_all=}, {is_forced=}")
 

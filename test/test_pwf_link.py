@@ -68,28 +68,44 @@ def prepare_lab():
                   Path("@lab"))
 
 
-@pytest.mark.parametrize("tag", common.tags)
+@pytest.mark.parametrize("tag", common.tags + ("@asdf",))
 def test__tag_to_path(tag):
     """
     Test of method _tag_to_path() for all tags
     """
-    src = Path(f"{root}/1_original/2024/")
+    src_state = "1_original" if tag != "@original" else "0_new"
+    src = Path(f"{root}/{src_state}/2024/")
+
+    if tag not in common.tags:
+        with pytest.raises(ValueError) as ex:
+            pwf_link._tag_to_path(src, tag)
+        assert str(ex.value) == "Invalid tag provided!"
+        return
+
+    print(">>># tags require event-dir (or sub-path of) as src")
+    src = Path(f"{root}/{src_state}/2024/")
     with pytest.raises(ValueError) as ex:
         pwf_link._tag_to_path(src, tag)
     assert str(ex.value) == \
-        "Linking to tag only allowed from within event dirs!"
+        "Linking to tag only allowed from within event dir!"
 
-    # TODO: continue here!
+    print(">>># use outside file-type dir (not allowed with tag @lab)")
+    src = Path(f"{root}/{src_state}/2024/2024-10-30_ev_1/")
+    dst = Path(f"{root}/{common.tag_dirs[tag]}/2024/2024-10-30_ev_1/")
+    if tag == "@lab":
+        with pytest.raises(ValueError) as ex:
+            pwf_link._tag_to_path(src, tag)
+        assert str(ex.value) == "Cannot determine file type dir from src_path!"
+    else:
+        path = pwf_link._tag_to_path(src, tag)
+        assert path == dst
 
-
-def test__tag_to_path_invalid_tag():
-    """
-    Test of method _tag_to_path() with illegal tag
-    """
-
-    with pytest.raises(ValueError) as ex:
-        pwf_link._tag_to_path(None, "@asdf")
-    assert str(ex.value) == "Tag '@asdf' is not valid!"
+    print(">>># use inside file-type dir (special conversion with tag @lab)")
+    src = Path(f"{root}/{src_state}/2024/2024-10-30_ev_1/jpg/")
+    dst = Path(f"{root}/{common.tag_dirs[tag]}/2024/2024-10-30_ev_1/")
+    dst /= "2_original_jpg" if tag == "@lab" else "jpg"
+    path = pwf_link._tag_to_path(src, tag)
+    assert path == dst
 
 
 def test__relative_to():
@@ -159,7 +175,10 @@ def test_lab_orig_to_tag(initial_paths, prepare_lab, tag, type_dir):
         pwf_link.main(
             Path(f"{root}/2_lab/2024/2024-10-30_ev_1/2_original_{type_dir}"),
             Path(tag))
-    assert str(ex.value) == "Not allowed to link from this src_path!"
+    exp_str = "Not allowed to link from this src_path!"
+    if tag in ("@new", "@original", "@lab"):
+        exp_str = "Not allowed to link to this state!"
+    assert str(ex.value) == exp_str
 
 
 @pytest.mark.parametrize("tag", common.tags)
@@ -175,9 +194,13 @@ def test_lab_final_to_tag(initial_paths, prepare_lab, tag):
         (f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_video/DSC_203.mpeg", 220),
     ))
 
-    allowed_tags = ("@album", "@print")
+    src = f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg"
 
-    if tag in allowed_tags:
+    if tag in ("@new", "@original", "@lab"):
+        with pytest.raises(ValueError) as ex:
+            pwf_link.main(Path(src), Path(tag))
+        assert str(ex.value) == "Not allowed to link to this state!"
+    else:
         pwf_link.main(
             Path(f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg"),
             Path(tag))
@@ -199,9 +222,3 @@ def test_lab_final_to_tag(initial_paths, prepare_lab, tag):
         for link in links:
             assert Path(link).is_symlink()
             assert Path(link).exists()  # link points to correct target
-    else:
-        with pytest.raises(ValueError) as ex:
-            pwf_link.main(
-                Path(f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg"),
-                Path(tag))
-        assert str(ex.value) == "Not allowed to link to this tag!"

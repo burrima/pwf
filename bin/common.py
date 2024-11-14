@@ -99,6 +99,7 @@ class Pwf_path_info():
     is_event_dir: bool = False
     year: int = None
     event: str = None
+    file_type: str = None
 
 
 def parse_path(path: Path) -> Pwf_path_info:
@@ -115,6 +116,8 @@ def parse_path(path: Path) -> Pwf_path_info:
                 info.is_event_dir = True
         elif re.match(r"\d{4}", part):
             info.year = int(part[:4])
+        elif part in type_dirs:
+            info.file_type = part
         elif info.state is None:
             match(part):
                 case "0_new":

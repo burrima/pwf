@@ -191,8 +191,8 @@ def test_lab_preparation_with_filter(initial_paths, caplog, type_dir):
 
     logging.info(">>># create preview files")
     test_common.create_paths((
-        (f"{root}/2_lab/{event_dir}/1_preview/DSC_100.jpg", 0),
-        (f"{root}/2_lab/{event_dir}/1_preview/DSC_103.jpg", 0),
+        (f"{root}/2_lab/{event_dir}/1_preview/DSC_100.jpg-preview.jpg", 0),
+        (f"{root}/2_lab/{event_dir}/1_preview/DSC_103.NEF-preview.jpg", 0),
     ))
 
     logging.info(">>># link")

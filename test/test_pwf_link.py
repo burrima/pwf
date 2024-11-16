@@ -34,19 +34,22 @@ import filecmp
 root = common.pwf_root_path
 
 
+event_dir = "2024/2024-10-30_ev_1"
+
+
 @pytest.fixture
 def initial_paths():
     pwf_init.create_initial_paths(root)
 
     test_common.create_paths((
-        (f"{root}/1_original/2024/2024-10-30_ev_1/", 0),
-        (f"{root}/1_original/2024/2024-10-30_ev_1/jpg/", 0),
-        (f"{root}/1_original/2024/2024-10-30_ev_1/jpg/DSC_100.jpg", 100),
-        (f"{root}/1_original/2024/2024-10-30_ev_1/jpg/DSC_101.jpg", 100),
-        (f"{root}/1_original/2024/2024-10-30_ev_1/jpg/DSC_102.jpg", 100),
-        (f"{root}/1_original/2024/2024-10-30_ev_1/raw/DSC_103.NEF", 900),
-        (f"{root}/1_original/2024/2024-10-30_ev_1/audio/track01.mp3", 75),
-        (f"{root}/1_original/2024/2024-10-30_ev_1/video/birds.mpeg", 850),
+        (f"{root}/1_original/{event_dir}/", 0),
+        (f"{root}/1_original/{event_dir}/jpg/", 0),
+        (f"{root}/1_original/{event_dir}/jpg/DSC_100.jpg", 100),
+        (f"{root}/1_original/{event_dir}/jpg/DSC_101.jpg", 100),
+        (f"{root}/1_original/{event_dir}/jpg/DSC_102.jpg", 100),
+        (f"{root}/1_original/{event_dir}/raw/DSC_103.NEF", 900),
+        (f"{root}/1_original/{event_dir}/audio/track01.mp3", 75),
+        (f"{root}/1_original/{event_dir}/video/birds.mpeg", 850),
         (f"{root}/3_album/2024/", 0),
         (f"{root}/4_print/2024/", 0),
     ))
@@ -58,14 +61,10 @@ def initial_paths():
 
 @pytest.fixture
 def prepare_lab():
-    pwf_link.main(Path(f"{root}/1_original/2024/2024-10-30_ev_1/jpg"),
-                  Path("@lab"))
-    pwf_link.main(Path(f"{root}/1_original/2024/2024-10-30_ev_1/raw"),
-                  Path("@lab"))
-    pwf_link.main(Path(f"{root}/1_original/2024/2024-10-30_ev_1/audio"),
-                  Path("@lab"))
-    pwf_link.main(Path(f"{root}/1_original/2024/2024-10-30_ev_1/video"),
-                  Path("@lab"))
+    pwf_link.main(Path(f"{root}/1_original/{event_dir}/jpg"), Path("@lab"))
+    pwf_link.main(Path(f"{root}/1_original/{event_dir}/raw"), Path("@lab"))
+    pwf_link.main(Path(f"{root}/1_original/{event_dir}/audio"), Path("@lab"))
+    pwf_link.main(Path(f"{root}/1_original/{event_dir}/video"), Path("@lab"))
 
 
 @pytest.mark.parametrize("tag", common.tags + ("@asdf",))
@@ -90,8 +89,8 @@ def test__tag_to_path(tag):
         "Linking to tag only allowed from within event dir!"
 
     print(">>># use outside file-type dir (not allowed with tag @lab)")
-    src = Path(f"{root}/{src_state}/2024/2024-10-30_ev_1/")
-    dst = Path(f"{root}/{common.tag_dirs[tag]}/2024/2024-10-30_ev_1/")
+    src = Path(f"{root}/{src_state}/{event_dir}")
+    dst = Path(f"{root}/{common.tag_dirs[tag]}/{event_dir}")
     if tag == "@lab":
         with pytest.raises(ValueError) as ex:
             pwf_link._tag_to_path(src, tag)
@@ -101,8 +100,8 @@ def test__tag_to_path(tag):
         assert path == dst
 
     print(">>># use inside file-type dir (special conversion with tag @lab)")
-    src = Path(f"{root}/{src_state}/2024/2024-10-30_ev_1/jpg/")
-    dst = Path(f"{root}/{common.tag_dirs[tag]}/2024/2024-10-30_ev_1/")
+    src = Path(f"{root}/{src_state}/{event_dir}/jpg/")
+    dst = Path(f"{root}/{common.tag_dirs[tag]}/{event_dir}/")
     dst /= "2_original_jpg" if tag == "@lab" else "jpg"
     path = pwf_link._tag_to_path(src, tag)
     assert path == dst
@@ -124,42 +123,99 @@ def test__relative_to():
         assert c == Path(vector[2])
 
 
-def test_lab_preparation(initial_paths, caplog):
+@pytest.mark.parametrize("type_dir", common.type_dirs)
+def test_lab_preparation(initial_paths, caplog, type_dir):
     """
-    Normal use case to prepare the lab
-
-    TODO: test with/without preview filtering!
+    Normal use case to prepare the lab (without preview file filter)
     """
 
-    f1s = f"{root}/1_original/2024/2024-10-30_ev_1/jpg/DSC_100.jpg"
-    f1d = f"{root}/2_lab/2024/2024-10-30_ev_1/2_original_jpg/DSC_100.jpg"
+    file = {
+        "raw": "DSC_103.NEF",
+        "jpg": "DSC_100.jpg",
+        "audio": "track01.mp3",
+        "video": "birds.mpeg"
+    }[type_dir]
 
-    f2s = f"{root}/1_original/2024/2024-10-30_ev_1/raw/DSC_103.NEF"
-    f2d = f"{root}/2_lab/2024/2024-10-30_ev_1/2_original_raw/DSC_103.NEF"
+    src = f"{root}/1_original/{event_dir}/{type_dir}/{file}"
+    dst = f"{root}/2_lab/{event_dir}/2_original_{type_dir}/{file}"
 
-    logging.info(">>># link jpg from 1_original to 2_lab")
-    pwf_link.main(Path(f"{root}/1_original/2024/2024-10-30_ev_1/jpg"),
-                  Path("@lab"))
+    logging.info(">>># link")
+    pwf_link.main(Path(f"{root}/1_original/{event_dir}/{type_dir}"),
+                  Path("@lab"), is_all=True)
 
     logging.info(">>># assert output text")
     text = "link: "
-    text += f"{f1d} -> "
-    text += "../../../../1_original/2024/2024-10-30_ev_1/jpg/DSC_100.jpg"
+    text += f"{dst} -> "
+    text += f"../../../../1_original/{event_dir}/{type_dir}/{file}"
     assert text in caplog.text
 
-    logging.info(">>># link raw from 1_original to 2_lab")
-    pwf_link.main(Path(f"{root}/1_original/2024/2024-10-30_ev_1/raw"),
-                  Path("@lab"))
-
-    logging.info(">>># assert output text")
-    text = "link: "
-    text += f"{f2d} -> "
-    text += "../../../../1_original/2024/2024-10-30_ev_1/raw/DSC_103.NEF"
-    assert text in caplog.text
+    logging.info(">>># assert link is present and points to correct file")
+    assert Path(dst).is_symlink()
+    assert Path(dst).exists()  # link points to correct target
 
     logging.info(">>># assert linked files are equal")
-    assert filecmp.cmp(f1s, f1d, shallow=False)
-    assert filecmp.cmp(f2s, f2d, shallow=False)
+    assert filecmp.cmp(src, dst, shallow=False)
+
+
+@pytest.mark.parametrize("type_dir", common.type_dirs)
+def test_lab_preparation_with_filter(initial_paths, caplog, type_dir):
+    """
+    Normal use case to prepare the lab (with preview file filter)
+
+    TODO: improve this test, it is a bit hacky :-)
+    """
+    file = {
+        "raw": "DSC_103.NEF",
+        "jpg": "DSC_100.jpg",
+        "audio": "track01.mp3",
+        "video": "birds.mpeg"
+    }[type_dir]
+
+    src = f"{root}/1_original/{event_dir}/{type_dir}/{file}"
+    dst = f"{root}/2_lab/{event_dir}/2_original_{type_dir}/{file}"
+
+    logging.info(">>># create preview files")
+    test_common.create_paths((
+        (f"{root}/2_lab/{event_dir}/1_preview/DSC_100.jpg", 0),
+        (f"{root}/2_lab/{event_dir}/1_preview/DSC_103.jpg", 0),
+    ))
+
+    logging.info(">>># link")
+    pwf_link.main(Path(f"{root}/1_original/{event_dir}/{type_dir}"),
+                  Path("@lab"))
+
+    logging.info(">>># assert output text")
+    text = "link: "
+    text += f"{dst} -> "
+    text += f"../../../../1_original/{event_dir}/{type_dir}/{file}"
+    assert text in caplog.text
+
+    if type_dir == "jpg":
+        # There are other files present, but no previews for them...
+
+        text = "Ignore due to not matching filter: "
+        text += f"{root}/1_original/{event_dir}/jpg/DSC_101.jpg"
+        assert text in caplog.text
+
+        text = "Ignore due to not matching filter: "
+        text += f"{root}/1_original/{event_dir}/jpg/DSC_102.jpg"
+        assert text in caplog.text
+
+    logging.info(">>># assert link is present and points to correct file")
+    assert Path(dst).is_symlink()
+    assert Path(dst).exists()  # link points to correct target
+
+    if type_dir == "jpg":
+        dst1 = f"{root}/2_lab/{event_dir}/2_original_{type_dir}/DSC_101.jpg"
+        assert not Path(dst1).is_symlink()
+        assert not Path(dst1).exists()
+
+        dst2 = f"{root}/2_lab/{event_dir}/2_original_{type_dir}/DSC_102.jpg"
+        assert not Path(dst2).is_symlink()
+        assert not Path(dst2).exists()
+
+    logging.info(">>># assert linked files are equal")
+    assert filecmp.cmp(src, dst, shallow=False)
 
 
 @pytest.mark.parametrize("tag", common.tags)
@@ -173,12 +229,9 @@ def test_lab_orig_to_tag(initial_paths, prepare_lab, tag, type_dir):
 
     with pytest.raises(ValueError) as ex:
         pwf_link.main(
-            Path(f"{root}/2_lab/2024/2024-10-30_ev_1/2_original_{type_dir}"),
+            Path(f"{root}/2_lab/{event_dir}/2_original_{type_dir}"),
             Path(tag))
-    exp_str = "Not allowed to link from this src_path!"
-    if tag in ("@new", "@original", "@lab"):
-        exp_str = "Not allowed to link to this state!"
-    assert str(ex.value) == exp_str
+    assert str(ex.value) == "Not allowed to link from this src_path!"
 
 
 @pytest.mark.parametrize("tag", common.tags)
@@ -188,36 +241,34 @@ def test_lab_final_to_tag(initial_paths, prepare_lab, tag):
     and @print (and not allowed otherwise)
     """
     test_common.create_paths((
-        (f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_200.jpg", 100),
-        (f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_201.jpg", 200),
-        (f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_audio/DSC_202.mp3", 210),
-        (f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_video/DSC_203.mpeg", 220),
+        (f"{root}/2_lab/{event_dir}/3_final_jpg/DSC_200.jpg", 100),
+        (f"{root}/2_lab/{event_dir}/3_final_jpg/DSC_201.jpg", 200),
+        (f"{root}/2_lab/{event_dir}/3_final_audio/DSC_202.mp3", 210),
+        (f"{root}/2_lab/{event_dir}/3_final_video/DSC_203.mpeg", 220),
     ))
 
-    src = f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg"
+    src = f"{root}/2_lab/{event_dir}/3_final_jpg"
 
     if tag in ("@new", "@original", "@lab"):
         with pytest.raises(ValueError) as ex:
             pwf_link.main(Path(src), Path(tag))
-        assert str(ex.value) == "Not allowed to link to this state!"
+        assert str(ex.value) == \
+            "Not allowed to link from src_path to dst_path!"
     else:
         pwf_link.main(
-            Path(f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg"),
-            Path(tag))
+            Path(f"{root}/2_lab/{event_dir}/3_final_jpg"), Path(tag))
         pwf_link.main(
-            Path(f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_audio"),
-            Path(tag))
+            Path(f"{root}/2_lab/{event_dir}/3_final_audio"), Path(tag))
         pwf_link.main(
-            Path(f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_video"),
-            Path(tag))
+            Path(f"{root}/2_lab/{event_dir}/3_final_video"), Path(tag))
 
         tag_dir = common.tag_dirs[tag]
 
         links = (
-            f"{root}/{tag_dir}/2024/2024-10-30_ev_1/jpg/DSC_200.jpg",
-            f"{root}/{tag_dir}/2024/2024-10-30_ev_1/jpg/DSC_201.jpg",
-            f"{root}/{tag_dir}/2024/2024-10-30_ev_1/audio/DSC_202.mp3",
-            f"{root}/{tag_dir}/2024/2024-10-30_ev_1/video/DSC_203.mpeg",
+            f"{root}/{tag_dir}/{event_dir}/jpg/DSC_200.jpg",
+            f"{root}/{tag_dir}/{event_dir}/jpg/DSC_201.jpg",
+            f"{root}/{tag_dir}/{event_dir}/audio/DSC_202.mp3",
+            f"{root}/{tag_dir}/{event_dir}/video/DSC_203.mpeg",
         )
         for link in links:
             assert Path(link).is_symlink()

@@ -76,17 +76,10 @@ def _tag_to_path(src_path: Path, tag: str) -> Path:
         dst = dst.replace("3_final_", "")
 
     if tag == "@lab":
-        # With tags, only allow to create links in 2_original_xy folders,
-        # pointing to 1_original folders!
-        if src_info.state != common.State.ORIGINAL:
-            raise ValueError("Only allowed to link to 1_original/ folders!")
-        if src_info.file_type is None:
+        ftype = src_info.file_type
+        if ftype is None:
             raise ValueError("Cannot determine file type dir from src_path!")
-        # change destination sub-dir from raw->2_original_raw etc:
-        for ftype in common.type_dirs:
-            if ftype in src:
-                dst = dst.replace(ftype, f"2_original_{ftype}")
-                break
+        dst = dst.replace(ftype, f"2_original_{ftype}")
 
     return Path(dst)
 
@@ -108,8 +101,17 @@ def _check_is_allowed(src_path: Path, dst_path: Path):
         raise ValueError("src_path does not exist!")
 
     if (src_info.state, dst_info.state) not in allowed_state_links:
-        err = f"Not allowed to link from {src_info.state} to {dst_info.state}!"
-        raise ValueError(err)
+        raise ValueError("Not allowed to link from src_path to dst_path!")
+
+    if src_info.state == common.State.LAB:
+        # only allow to link from 3_final_xy folders!
+        if "3_final_" not in str(src_path):
+            raise ValueError("Not allowed to link from this src_path!")
+
+    if dst_info.state == common.State.LAB:
+        # only allow to link to 2_original_xy folders!
+        if "2_original_" not in str(dst_path):
+            raise ValueError("Not allowed to link to this dst_path!")
 
 
 def _relative_to(src: Path, dst: Path) -> Path:
@@ -163,7 +165,7 @@ def _link_to_files_in_dir(src_path: Path, dst_path: Path,
 
     for p in src_path.glob("*.*"):
         if filt is not None:
-            filt_matches = [f for f in filt if f in p]
+            filt_matches = [f for f in filt if f in str(p)]
             if len(filt_matches) > 1:
                 logger.warning("More than 1 filter pattern match the file!")
             elif len(filt_matches) == 0:
@@ -184,16 +186,23 @@ def main(src_path: Path, dst_path: Path, is_all: bool = False,
 
     _check_is_allowed(src_path, dst_path)
 
-    # parse and check path:
-    common.parse_path(dst_path)
-
     logger.debug(f"{src_path=}, {dst_path=}, {is_all=}, {is_forced=}")
 
-    # TODO: if destination is @lab, then use preview files to filter which
+    src_info = common.parse_path(src_path)
+    dst_info = common.parse_path(dst_path)
+
+    # if destination is @lab, then use preview files to filter which
     # links are created!
     filt = None
-    # if dst_info.state == common.State.LAB:
-    #     for p in 
+    if dst_info.state == common.State.LAB and not is_all \
+       and src_info.file_type in ("raw", "jpg"):
+        filt = []
+        path = common.pwf_root_path / "2_lab"
+        path = path / str(src_info.year) / src_info.event / "1_preview/"
+        logger.info(path)
+        for p in path.glob("*.jpg"):
+            filt.append(p.stem)
+        logger.info(filt)
 
     if src_path.is_dir():
         _link_to_files_in_dir(src_path, dst_path, is_forced, filt)

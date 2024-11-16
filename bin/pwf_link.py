@@ -175,6 +175,14 @@ def _link_to_files_in_dir(src_path: Path, dst_path: Path,
         _link_to_file(p, dst, is_forced)
 
 
+def _get_filter_by_lab_preview(preview_path: Path) -> list[str]:
+    filt = []
+    for p in preview_path.glob("*.jpg"):
+        stem = common.get_orig_name(p, with_extension=True)
+        filt.append(stem)
+    return filt
+
+
 def main(src_path: Path, dst_path: Path, is_all: bool = False,
          is_forced: bool = False):
 
@@ -196,13 +204,9 @@ def main(src_path: Path, dst_path: Path, is_all: bool = False,
     filt = None
     if dst_info.state == common.State.LAB and not is_all \
        and src_info.file_type in ("raw", "jpg"):
-        filt = []
         path = common.pwf_root_path / "2_lab"
         path = path / str(src_info.year) / src_info.event / "1_preview/"
-        logger.info(path)
-        for p in path.glob("*.jpg"):
-            filt.append(p.stem)
-        logger.info(filt)
+        filt = _get_filter_by_lab_preview(path)
 
     if src_path.is_dir():
         _link_to_files_in_dir(src_path, dst_path, is_forced, filt)

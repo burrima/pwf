@@ -161,16 +161,7 @@ def _check_raw_derivatives(path: Path):
 
     for ext in common.raw_file_extensions:
         for p in path.glob(f"**/*.{ext}"):
-            stem = p.stem
-
-            # be more aggressive in finding the RAW base name by only
-            # considering the last 8 characters of the base name (cut away any
-            # prefix).  This matches names like DSC_1234 or IMG_1234, as
-            # usually used by cameras. This is not so robust, but ok for my
-            # personal needs.
-            # TODO: make is_aggressive available via parameter
-
-            stem = stem[-8:]
+            stem = common.get_orig_name(p, with_extension=False)
 
             files_with_same_stem = list(path.glob(f"**/*{stem}*"))
             if len(files_with_same_stem) > 1:

@@ -150,3 +150,24 @@ def md5sum(path, is_partial=False):
         data = f.read(8000 if is_partial else None)
         md5sum = hashlib.md5(data).hexdigest()
     return md5sum
+
+
+def get_orig_name(path: Path, with_extension: bool = False) -> str:
+    """
+    Extract original file name from given path.
+
+    Original name can be prefixed with date-time string and post-fixed
+    with "-preview.jpg". The start of the original name is retrieved by
+    searching for the first alpha-character.
+    """
+    name = path.name
+    if name.endswith("-preview.jpg"):
+        name = name.replace("-preview.jpg", "")  # remove preview ending
+
+    if not with_extension:
+        name = Path(name).stem
+
+    match = re.search(r"[a-zA-Z]", name)
+    idx = match.start()
+    name = name[idx:]
+    return name

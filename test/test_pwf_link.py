@@ -123,6 +123,21 @@ def test__relative_to():
         assert c == Path(vector[2])
 
 
+def test__get_filter_by_lab_preview(initial_paths):
+    preview_dir = f"{root}/2_lab/{event_dir}/1_preview"
+    test_common.create_paths((
+        (f"{preview_dir}/20240317-090510-IMG_6290.CR2-preview.jpg", 10),
+        (f"{preview_dir}/IMG_20240303_113755.jpg-preview.jpg", 10),
+    ))
+
+    filt = pwf_link._get_filter_by_lab_preview(Path(preview_dir))
+    logging.info(filt)
+    assert filt == [
+        "IMG_6290.CR2",
+        "IMG_20240303_113755.jpg"
+    ]
+
+
 @pytest.mark.parametrize("type_dir", common.type_dirs)
 def test_lab_preparation(initial_paths, caplog, type_dir):
     """

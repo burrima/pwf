@@ -156,6 +156,8 @@ def get_orig_name(path: Path, with_extension: bool = False) -> str:
     """
     Extract original file name from given path.
 
+    Similar to Path.stem or Path.name, but with extra feature.
+
     Original name can be prefixed with date-time string and post-fixed
     with "-preview.jpg". The start of the original name is retrieved by
     searching for the first alpha-character.

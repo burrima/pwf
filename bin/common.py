@@ -28,6 +28,12 @@ raw_file_extensions = ("NEF", "NRW", "CR2")
 jpg_file_extensions = ("jpg", "JPG", "jpeg", "JPEG")
 
 
+video_file_extensions = ("MOV", "mp4", "MP4", "mpeg", "mov", "MOV")
+
+
+audio_file_extensions = ("wav", "WAV", "mp3")
+
+
 type_dirs = ("raw", "jpg", "audio", "video")
 
 

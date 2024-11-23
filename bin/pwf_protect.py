@@ -34,13 +34,14 @@ logger = logging.getLogger(__name__)
 
 info_text =\
     """
-Protects or unprotects a file or folder provided by PATH. Normally only used
-against 1_original/YEAR, but can be used for any PATH.  Calls pwf_check.py
-before protection is applied (unless -f is set).
+Protects or unprotects a file or folder provided by PATH. Normally
+only used against 1_original/YEAR, but can be used for any PATH.
+Calls pwf_check.py before protection is applied (unless -f is set).
 
-By default, only folders are unprotected, but files remain protected. This
-allows to add or delete files, but modification is still not allowed. With the
-flag -a all files can be unlocked too (use with care!).
+By default, only folders are unprotected, but files remain protected.
+This allows to add or delete files, but modification is still not
+allowed. With the flag -a all files can be unlocked too (use with
+care!).
     """ + common.fzf_info_text
 
 

@@ -46,14 +46,16 @@ IGNORELIST
     raw   ignore RAW derivatives
 
 Performs various checks against the given folder:
-    * file and folder names
-    * duplicates
-    * RAW derivatives (files other than RAW but with same name pattern)
-    * file and folder protection (useful only for 1_original/ folders)
-    * MD5 checksums (useful only for 1_original/ folders)
-    * Missing files (compared to MD5 checksum file) - not done when MD5
-      checking is enabled (is covered by MD5 checking)
-    * file and folder structure (path)
+
+  * file and folder names
+  * duplicates
+  * RAW derivatives (files other than RAW but with same name pattern)
+  * file and folder protection (useful only for 1_original/ folders)
+  * MD5 checksums (useful only for 1_original/ folders)
+  * Missing files (compared to MD5 checksum file) - not done when MD5
+    checking is enabled (is covered by MD5 checking)
+  * file and folder structure (path)
+
 Checks can be disabled individually, see OPTIONS above.
     """ + common.fzf_info_text
 

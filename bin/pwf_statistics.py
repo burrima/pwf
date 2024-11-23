@@ -98,7 +98,6 @@ if __name__ == "__main__":
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=info_text)
 
-    group = parser.add_mutually_exclusive_group(required=False)
     parser.add_argument("-l", "--loglevel",
                         help="log level to use",
                         default="INFO")

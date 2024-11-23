@@ -34,18 +34,18 @@ info_text =\
     """
 Links SRC file(s) into the DST_DIR directory.
 
-SRC can be a file or a folder. Folders can be traversed recursively with
-the option -r. A DST_DIR can be specified where to place the links. If
-no destination is provided, the files will be placed where the script is
-called from.
+SRC can be a file or a folder. Folders can be traversed recursively
+with the option -r. A DST_DIR can be specified where to place the
+links. If no destination is provided, the files will be placed where
+the script is called from.
 
 DST_DIR can be set to "@lab" to cause special behavior: In this case,
-SRC must point to an event folder in the 1_original/ tree. All files are
-then linked into the corresponding event folder in the 2_lab/ tree, into
-sub- folders 2_original_{jpg,raw,audio,video} (implies option -r). RAW
-and JPG images are only linked if a corresponding preview file is
-present in the folder 1_preview/ of the lab event folder. This can be
-bypassed with the option -a.
+SRC must point to an event folder in the 1_original/ tree. All files
+are then linked into the corresponding event folder in the 2_lab/
+tree, into sub- folders 2_original_{jpg,raw,audio,video} (implies
+option -r). RAW and JPG images are only linked if a corresponding
+preview file is present in the folder 1_preview/ of the lab event
+folder. This can be bypassed with the option -a.
     """ + common.fzf_info_text
 
 

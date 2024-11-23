@@ -1,3 +1,24 @@
+#!/usr/bin/env python3
+# Copyright 2024 Martin Burri
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 
 from enum import Enum
 from pathlib import Path
@@ -59,11 +80,11 @@ valid_file_locations = {
 fzf_info_text =\
     """
 FZF: Any path can be specified either by by normal means of bash (e.g.
-with tab completion) or by using the FZF tool. Type **<tab> to bring the
-FZF tool to front where you can select the desired path much faster (see
-man fzf for more details). Paths are automatically bound to the pwf
-folder structure, so this script can be used from anywhere whith
-consistent behavior.
+with tab completion) or by using the FZF tool. Type **<tab> to bring
+the FZF tool to front where you can select the desired path much
+faster (see man fzf for more details). Paths are automatically bound
+to the pwf folder structure, so this script can be used from anywhere
+with consistent behavior.
     """
 
 
@@ -165,8 +186,8 @@ def get_orig_name(path: Path, with_extension: bool = False) -> str:
     Similar to Path.stem or Path.name, but with extra feature.
 
     Original name can be prefixed with date-time string and post-fixed
-    with "-preview.jpg". The start of the original name is retrieved by
-    searching for the first alpha-character.
+    with "-preview.jpg". The start of the original name is retrieved
+    by searching for the first alpha-character.
     """
     name = path.name
     if name.endswith("-preview.jpg"):

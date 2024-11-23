@@ -38,15 +38,17 @@ info_text =\
 IGNORELIST
     See documentation of pwf_check.py -h
 
-Import (i.e. move a new folder structure from 0_new into the 1_original/YEAR/
-archive. The folder structure must contain files sorted to raw/, jpg/, video/
-and audio/ otherwise the script will exit with an error.
+Import (i.e. move a new folder structure from 0_new into the
+1_original/YEAR/ archive. The folder structure must contain files
+sorted to raw/, jpg/, video/ and audio/ otherwise the script will exit
+with an error.
 
-If --keep-unprotected is specified, the destination path (year) will kept
-unprotected after the import. The user is then responsible by them own to call
-pwf_protect.py against the destination folder.
+If --keep-unprotected is specified, the destination path (year) will
+kept unprotected after the import. The user is then responsible by
+them own to call pwf_protect.py against the destination folder.
 
 This script automates the following sequence:
+
   * pwf_check.py -i IGNORELLIST 0_new/EVENT/
   * pwf_protect.py -u 1_original/YEAR/
   * mv 0_new/EVENT 1_original/YEAR/EVENT

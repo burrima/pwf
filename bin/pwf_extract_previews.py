@@ -67,6 +67,16 @@ def _run_cmd(cmd: str) -> str:
 
 
 def extract_raw_preview(src_path: Path, dst_path: Path):
+    # from PIL import Image, ImageFile
+    # import rawpy
+    # with rawpy.imread(str(path)) as raw:
+    #     # raises rawpy.LibRawNoThumbnailError if thumbnail missing
+    #     # raises rawpy.LibRawUnsupportedThumbnailError if unsupported
+    #     # format
+    #     thumb = raw.extract_thumb()
+    # p = ImageFile.Parser()
+    # p.feed(thumb.data)
+    # im = p.close()
 
     tmp_file = Path("/tmp") / f"{src_path.stem}-preview3.jpg"
 

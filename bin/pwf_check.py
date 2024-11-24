@@ -327,7 +327,7 @@ if __name__ == "__main__":
 
     try:
         main(Path(args.path), ignorelist, onlylist, args.fix, args.nono)
-    except ValueError as ex:
-        logger.error(str(ex))
-    except AssertionError as ex:
+    except Exception as ex:
+        if args.loglevel.upper() == "DEBUG":
+            raise
         logger.error(str(ex))

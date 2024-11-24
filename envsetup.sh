@@ -67,7 +67,6 @@ _fzf_setup_completion dir pwf_prepare_lab.py
 _fzf_setup_completion dir pwf_statistics.py
 _fzf_setup_completion path pwf_rename_by_date.py
 _fzf_setup_completion dir pwf_cleanup.py
-_fzf_setup_completion path pwf_downsize_image.py
-_fzf_setup_completion path pwf_downsize_video.py
+_fzf_setup_completion path pwf_downsize.py
 _fzf_setup_completion path pwf_link.py
 

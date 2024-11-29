@@ -1,0 +1,8 @@
+{
+    "*": {
+        "fixers": ["remove_trailing_lines", "trim_whitespace"]
+    },
+    "*.py": {
+        "linters": ["flake8", "jedils", "mypy"]
+    }
+}

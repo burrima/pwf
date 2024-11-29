@@ -32,7 +32,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-info_text =\
+info_text: str =\
     """
 TAGS
     UHD   3840x2160
@@ -51,34 +51,34 @@ when printed, all images are of same resolution.
     """ + common.fzf_info_text
 
 
-class Size():
+class Size(object):
     width: float = 0.0
     height: float = 0.0
 
-    def __init__(self, width: float, height: float):
+    def __init__(self, width: float, height: float) -> None:
         self.width = width
         self.height = height
 
-    def get_int_size(self):
-        return Size(int(self.width), int(self.height))
+    def get_int_size(self) -> tuple[int, int]:
+        return (int(self.width), int(self.height))
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Size({self.width}, {self.height})"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
-    def is_landscape(self):
+    def is_landscape(self) -> bool:
         return self.width > self.height
 
-    def is_portrait(self):
+    def is_portrait(self) -> bool:
         return self.width < self.height
 
-    def rotate(self):
+    def rotate(self) -> None:
         self.width, self.height = self.height, self.width
 
 
-tag_sizes = {
+tag_sizes: dict = {
     "UHD": Size(3840, 2160),
     "QHD": Size(2560, 1440),
     "FHD": Size(1920, 1080),
@@ -86,7 +86,7 @@ tag_sizes = {
 }
 
 
-def _compute_inside_box(im_size: Size, box: Size, align: bool = True) -> Size:
+def compute_inside_box(im_size: Size, box: Size, align: bool = True) -> Size:
 
     box = copy.copy(box)
     out_size = Size(im_size.width, im_size.height)
@@ -102,33 +102,41 @@ def _compute_inside_box(im_size: Size, box: Size, align: bool = True) -> Size:
         out_size.width *= box.height / out_size.height
         out_size.height = box.height
 
-    return out_size.get_int_size()
+    return Size(*(out_size.get_int_size()))
 
 
-def scale_image(src_path: Path, dst_path: Path,
-                box: Size, align_box: bool = True):
+def scale_image(src: Path | Image.Image, dst_path: Path,
+                box: Size, align_box: bool = True) -> None:
     # convert -filter Sinc -resize "$SIZE" -quality 90 "$in_file" "$out_file"
 
-    im = Image.open(src_path)
-    size = _compute_inside_box(Size(im.width, im.height), box, align_box)
+    im: Image.Image
 
-    im_hd = im.resize((size.width, size.height),
-                      resample=Image.Resampling.BICUBIC,
-                      reducing_gap=3.0)
+    if type(src) is Path:
+        im = Image.open(src)
+    elif type(src) is Image.Image:
+        im = src
+    else:
+        raise ValueError("src has wrong type!")
 
-    im_hd.save(dst_path,
-               'jpeg',
-               icc_profile=im.info.get('icc_profile'),
-               exif=im.info.get('exif'),
-               quality=80)
+    size = compute_inside_box(Size(im.width, im.height), box, align_box)
+
+    im_scaled = im.resize(size.get_int_size(),
+                          resample=Image.Resampling.BICUBIC,
+                          reducing_gap=3.0)
+
+    im_scaled.save(dst_path,
+                   'jpeg',
+                   icc_profile=im.info.get('icc_profile'),
+                   exif=im.info.get('exif'),
+                   quality=80)
 
 
-def scale_video(src_path: Path, dst_path: Path, box: set[int]):
+def scale_video(src_path: Path, dst_path: Path, box: Size) -> None:
     # ffmpeg -i $in_file -vf scale="$SIZE" -c:v libx265 $out_file
     pass
 
 
-def main(path: Path, tag: str):
+def main(path: Path, tag: str) -> None:
 
     logger.info("pwf_downsize: ENTRY")
 
@@ -158,7 +166,7 @@ def main(path: Path, tag: str):
         if file.suffix[1:] in common.jpg_file_extensions:
             scale_image(file, dst_file, box, True)
         elif file.suffix in common.video_file_extensions:
-            scale_video(file, dst_file, box, True)
+            scale_video(file, dst_file, box)
         else:
             raise ValueError("Can only downsize jpg images and videos!")
 

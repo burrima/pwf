@@ -22,26 +22,22 @@
 
 
 from bin import common
-from collections import defaultdict
 from pathlib import Path
 import argparse
-import copy
 import logging
-import re
-import stat
 
 
 logger = logging.getLogger(__name__)
 
 
-info_text =\
+info_text: str =\
     """
 Provides statistics about the files contained in the given PATH.
     """ + common.fzf_info_text
 
 
-def _get_stats(path: Path, extensions: set) -> set:
-    files_grabbed = []
+def _get_stats(path: Path, extensions: set) -> tuple[int, int]:
+    files_grabbed: list[Path] = []
     for ext in extensions:
         files_grabbed.extend(path.glob(f"**/*.{ext}"))
 
@@ -55,21 +51,21 @@ def _get_stats(path: Path, extensions: set) -> set:
     return num_files, total_size
 
 
-def _size_to_str(size_bytes: int):
+def _size_to_str(size_bytes: int) -> str:
 
-    unit = ("KiB", "MiB", "GiB", "TiB")
+    unit: list[str] = ["KiB", "MiB", "GiB", "TiB"]
 
-    size = size_bytes
+    size: float = float(size_bytes)
     for i in range(len(unit)):
         if size < 1024:
             break
 
-        size /= 1024
+        size /= 1024.0
 
     return f"{round(size, 1)} {unit[i-1]}"
 
 
-def main(path: Path):
+def main(path: Path) -> None:
 
     logger.info("pwf_statistics: ENTRY")
 
@@ -110,7 +106,7 @@ if __name__ == "__main__":
 
     try:
         main(Path(args.path))
-    except ValueError as ex:
-        logger.error(str(ex))
-    except AssertionError as ex:
+    except Exception as ex:
+        if args.loglevel.upper() == "DEBUG":
+            raise
         logger.error(str(ex))

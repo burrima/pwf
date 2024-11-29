@@ -110,7 +110,7 @@ if __name__ == "__main__":
     try:
         main(Path(args.path), do_unprotect=args.unprotect,
              is_forced=args.forced, is_all=args.all)
-    except ValueError as ex:
-        logger.error(str(ex))
-    except AssertionError as ex:
+    except Exception as ex:
+        if args.loglevel.upper() == "DEBUG":
+            raise
         logger.error(str(ex))

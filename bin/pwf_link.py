@@ -30,7 +30,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-info_text =\
+info_text: str =\
     """
 Links SRC file(s) into the DST_DIR directory.
 
@@ -66,8 +66,10 @@ def _tag_to_path(src_path: Path, tag: str) -> Path:
     if src_info.event is None:
         raise ValueError("Linking to tag only allowed from within event dir!")
 
-    dst = src.replace(common.state_dirs[src_info.state],
-                      common.tag_dirs[tag])
+    if src_info.state is None:
+        raise ValueError("Invalid src_path provided!")
+
+    dst = src.replace(common.state_dirs[src_info.state], common.tag_dirs[tag])
 
     if src_info.state == common.State.LAB:
         # With tags, only allow to link to 3_final_xy folders!
@@ -156,7 +158,8 @@ def _link_to_file(src_path: Path, dst_path: Path, is_forced: bool = False):
 
 
 def _link_to_files_in_dir(src_path: Path, dst_path: Path,
-                          is_forced: bool = False, filt: set = None):
+                          is_forced: bool = False,
+                          filt: list[str] | None = None):
     """
     Create symlinks from dst_path to files in src_path directory.
     """
@@ -176,7 +179,7 @@ def _link_to_files_in_dir(src_path: Path, dst_path: Path,
 
 
 def _get_filter_by_lab_preview(preview_path: Path) -> list[str]:
-    filt = []
+    filt: list[str] = []
     for p in preview_path.glob("*.jpg"):
         stem = common.get_orig_name(p, with_extension=True)
         filt.append(stem)
@@ -201,9 +204,15 @@ def main(src_path: Path, dst_path: Path, is_all: bool = False,
 
     # if destination is @lab, then use preview files to filter which
     # links are created!
-    filt = None
+    filt: list[str] | None = None
     if dst_info.state == common.State.LAB and not is_all \
-       and src_info.file_type in ("raw", "jpg"):
+       and src_info.file_type in {"raw", "jpg"}:
+
+        if src_info.year is None:
+            raise ValueError("src_path must contain year!")
+        if src_info.event is None:
+            raise ValueError("src_path must contain event dir!")
+
         path = common.pwf_root_path / "2_lab"
         path = path / str(src_info.year) / src_info.event / "1_preview/"
         filt = _get_filter_by_lab_preview(path)

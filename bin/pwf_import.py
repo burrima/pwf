@@ -33,7 +33,7 @@ import shutil
 logger = logging.getLogger(__name__)
 
 
-info_text =\
+info_text: str =\
     """
 IGNORELIST
     See documentation of pwf_check.py -h
@@ -56,8 +56,8 @@ This script automates the following sequence:
     """ + common.fzf_info_text
 
 
-def main(path: Path, ignorelist: set = None, year: int = None,
-         keep_unprotected: bool = False, is_nono: bool = False):
+def main(path: Path, ignorelist: set | None = None, year: int | None = None,
+         keep_unprotected: bool = False, is_nono: bool = False) -> None:
 
     logger.info("pwf_import: ENTRY")
 
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     try:
         main(Path(args.path), ignorelist=ignorelist, year=args.year,
              keep_unprotected=args.keep_unprotected, is_nono=args.nono)
-    except ValueError as ex:
-        logger.error(str(ex))
-    except AssertionError as ex:
+    except Exception as ex:
+        if args.loglevel.upper() == "DEBUG":
+            raise
         logger.error(str(ex))

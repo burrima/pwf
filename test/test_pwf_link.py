@@ -67,7 +67,7 @@ def prepare_lab():
     pwf_link.main(Path(f"{root}/1_original/{event_dir}/video"), Path("@lab"))
 
 
-@pytest.mark.parametrize("tag", common.tags + ("@asdf",))
+@pytest.mark.parametrize("tag", common.tags | {"@asdf",})
 def test__tag_to_path(tag):
     """
     Test of method _tag_to_path() for all tags

@@ -31,34 +31,37 @@ import os
 logger = logging.getLogger(__name__)
 
 
-legal_characters = r"\wäöüÄÖÜé~._-"
+legal_characters: str = r"\wäöüÄÖÜé~._-"
 
 
-pwf_root_path = Path(os.getenv("PWF_ROOT_PATH"))
+pwf_root = os.getenv("PWF_ROOT_PATH")
+if pwf_root is None:
+    raise RuntimeError("PWF_ROOT_PATH is not defined. Is envstup.sh sourced?")
+pwf_root_path = Path(pwf_root)
 
 
-name_replacements = (
+name_replacements: set[tuple[str, str]] = {
     (" ", "_"),
     ("&", "und"),
-    ("-_", ""))
+    ("-_", "")}
 
 
-raw_file_extensions = ("NEF", "NRW", "CR2")
+raw_file_extensions: set[str] = {"NEF", "NRW", "CR2"}
 
 
-jpg_file_extensions = ("jpg", "JPG", "jpeg", "JPEG")
+jpg_file_extensions: set[str] = {"jpg", "JPG", "jpeg", "JPEG"}
 
 
-video_file_extensions = ("MOV", "mp4", "MP4", "mpeg", "mov", "MOV")
+video_file_extensions: set[str] = {"MOV", "mp4", "MP4", "mpeg", "mov", "MOV"}
 
 
-audio_file_extensions = ("wav", "WAV", "mp3")
+audio_file_extensions: set[str] = {"wav", "WAV", "mp3"}
 
 
-type_dirs = ("raw", "jpg", "audio", "video")
+type_dirs: set[str] = {"raw", "jpg", "audio", "video"}
 
 
-valid_file_locations = {
+valid_file_locations: dict[str, str] = {
     "NEF": "raw",
     "NRW": "raw",
     "CR2": "raw",
@@ -77,7 +80,7 @@ valid_file_locations = {
     "mp3": "audio"}
 
 
-fzf_info_text =\
+fzf_info_text: str =\
     """
 FZF: Any path can be specified either by by normal means of bash (e.g.
 with tab completion) or by using the FZF tool. Type **<tab> to bring
@@ -96,7 +99,7 @@ class State(Enum):
     PRINT = 4
 
 
-state_dirs = {
+state_dirs: dict[State, str] = {
     State.NEW: "0_new",
     State.ORIGINAL: "1_original",
     State.LAB: "2_lab",
@@ -105,10 +108,10 @@ state_dirs = {
 }
 
 
-tags = ("@new", "@original", "@lab", "@album", "@print")
+tags: set[str] = {"@new", "@original", "@lab", "@album", "@print"}
 
 
-tag_dirs = {
+tag_dirs: dict[str, str] = {
     "@new": "0_new",
     "@original": "1_original",
     "@lab": "2_lab",
@@ -117,16 +120,16 @@ tag_dirs = {
 }
 
 
-def path_is_tag(path: Path):
+def path_is_tag(path: Path) -> bool:
     return str(path)[0] == "@"
 
 
-class Pwf_path_info():
-    state: State = None
+class Pwf_path_info(object):
+    state: State | None = None
     is_event_dir: bool = False
-    year: int = None
-    event: str = None
-    file_type: str = None
+    year: int | None = None
+    event: str | None = None
+    file_type: str | None = None
 
 
 def parse_path(path: Path) -> Pwf_path_info:
@@ -169,7 +172,7 @@ def parse_path(path: Path) -> Pwf_path_info:
     return info
 
 
-def md5sum(path, is_partial=False):
+def md5sum(path: Path, is_partial: bool = False) -> str:
     # if is_partial=True, read only first 8k data (which should be fine for
     # pictures).
     # TODO: read chunked for big files (memory issue)
@@ -197,6 +200,8 @@ def get_orig_name(path: Path, with_extension: bool = False) -> str:
         name = Path(name).stem
 
     match = re.search(r"[a-zA-Z]", name)
+    if match is None:
+        raise RuntimeError(f"Unable to determine orig name from {name=}")
     idx = match.start()
     name = name[idx:]
     return name

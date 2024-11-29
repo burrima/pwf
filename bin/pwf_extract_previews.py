@@ -21,17 +21,22 @@
 #
 
 
+from PIL import ImageFile
 from bin import common
 from pathlib import Path
+from bin.pwf_downsize import tag_sizes, scale_image
 import argparse
 import logging
-import subprocess
+import rawpy  # type: ignore
 
 
 logger = logging.getLogger(__name__)
 
 
-info_text =\
+preview_size_tag: str = "FHD"  # how big preview files shall be
+
+
+info_text: str =\
     """
 Creates small preview images out of RAW and JPG files. For RAW files,
 the preview images are extracted from the exif info. For JPG files, a
@@ -54,54 +59,23 @@ option -r).
     """ + common.fzf_info_text
 
 
-def _run_cmd(cmd: str) -> str:
-    ret = subprocess.run(
-        cmd,
-        shell=True,
-        capture_output=True)
-    stdout = ret.stdout.strip().decode()
-    stderr = ret.stderr.strip().decode()
-    if int(ret.returncode) != 0:
-        raise RuntimeError(f"Command failed: {cmd=}, {stdout=}, {stderr=}")
-    return stdout
+def extract_raw_preview(src_path: Path, dst_path: Path) -> None:
 
+    with rawpy.imread(str(src_path)) as raw:
+        # raises rawpy.LibRawNoThumbnailError if thumbnail missing
+        # raises rawpy.LibRawUnsupportedThumbnailError if unsupported
+        # format
+        thumb = raw.extract_thumb()
+        p = ImageFile.Parser()
+        p.feed(thumb.data)
+        im = p.close()
 
-def extract_raw_preview(src_path: Path, dst_path: Path):
-    # from PIL import Image, ImageFile
-    # import rawpy
-    # with rawpy.imread(str(path)) as raw:
-    #     # raises rawpy.LibRawNoThumbnailError if thumbnail missing
-    #     # raises rawpy.LibRawUnsupportedThumbnailError if unsupported
-    #     # format
-    #     thumb = raw.extract_thumb()
-    # p = ImageFile.Parser()
-    # p.feed(thumb.data)
-    # im = p.close()
-
-    tmp_file = Path("/tmp") / f"{src_path.stem}-preview3.jpg"
-
-    orientation = _run_cmd(
-        f"exiv2 -Pv -g Exif.Image.Orientation {src_path}")
-    date = _run_cmd(
-        f"exiv2 -Pv -g Exif.Photo.DateTimeOriginal {src_path}")
-
-    logger.debug(f"{orientation=}, {date=}")
-
-    _run_cmd(f"exiv2 -ep3 -l/tmp -f {src_path}")
-
-    _run_cmd(f"exiv2 -M'set Exif.Image.Orientation {orientation}' {tmp_file}")
-    _run_cmd(f"exiv2 -M'set Exif.Photo.DateTimeOriginal {date}' {tmp_file}")
-
-    _run_cmd("convert -filter Sinc -resize 'x1080>' -quality 85 " +
-             f"{tmp_file} {dst_path}")
-
-    tmp_file.unlink()
+    scale_image(im, dst_path, tag_sizes[preview_size_tag])
 
 
 def extract_jpg_preview(src_path: Path, dst_path: Path):
 
-    _run_cmd("convert -filter Sinc -resize 'x1080>' -quality 85 " +
-             f"{src_path} {dst_path}")
+    scale_image(src_path, dst_path, tag_sizes[preview_size_tag])
 
 
 def _tag_to_path(src_path: Path, tag: str) -> Path:
@@ -121,18 +95,21 @@ def _tag_to_path(src_path: Path, tag: str) -> Path:
     if src_info.event is None:
         raise ValueError("Linking to tag only allowed from within event dir!")
 
-    dst = src.replace(common.state_dirs[src_info.state],
-                      common.tag_dirs[tag])
+    if src_info.state is None:
+        raise ValueError("Invalid src_path provided!")
+
+    dst_path = Path(src.replace(common.state_dirs[src_info.state],
+                    common.tag_dirs[tag]))
 
     if tag == "@lab":
-        dst = common.pwf_root_path / "2_lab" \
+        dst_path = common.pwf_root_path / "2_lab" \
             / str(src_info.year) / src_info.event / "1_preview"
 
-    return Path(dst)
+    return dst_path
 
 
-def main(src_path: Path, dst_path: Path, is_recursive: bool = False,
-         filter_file: Path = None, is_nono: bool = False):
+def main(src_path: Path, dst_path: Path | None, is_recursive: bool = False,
+         filter_file: Path | None = None, is_nono: bool = False):
 
     # TODO:
     # * if dst_path is None, use same dir
@@ -227,7 +204,7 @@ if __name__ == "__main__":
         main(src_path=Path(args.src_path), dst_path=dst_path,
              is_recursive=args.recursive, filter_file=args.filter_file,
              is_nono=args.nono)
-    except ValueError as ex:
-        logger.error(str(ex))
-    except AssertionError as ex:
+    except Exception as ex:
+        if args.loglevel.upper() == "DEBUG":
+            raise
         logger.error(str(ex))

@@ -44,9 +44,9 @@ root = common.pwf_root_path
     pwf_downsize.Size(720, 1024),
 ))
 @pytest.mark.parametrize("align", (True, False))
-def test__compute_inside_box(im_size, box, align):
+def test_compute_inside_box(im_size, box, align):
 
-    size = pwf_downsize._compute_inside_box(im_size, box, align=align)
+    size = pwf_downsize.compute_inside_box(im_size, box, align=align)
     logging.info(f"{im_size=}, {box=}, {align=} => {size=}")
 
     assert type(size.width) is int

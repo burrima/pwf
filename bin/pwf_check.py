@@ -212,7 +212,9 @@ def _check_missing_files(path: Path):
     logger.info("check missing files...")
 
 
-def _get_checklist(path: Path, ignorelist: set = None, onlylist: set = None):
+def _get_checklist(path: Path, ignorelist: set | None = None,
+                   onlylist: set | None = None):
+
     if ignorelist is None:
         ignorelist = set()
     if onlylist is None:
@@ -244,8 +246,9 @@ def _get_checklist(path: Path, ignorelist: set = None, onlylist: set = None):
     return checklist
 
 
-def main(path: Path, ignorelist: set = None, onlylist: set = None,
-         do_fix: bool = False, is_nono: bool = False):
+def main(path: Path, ignorelist: set | None = None,
+         onlylist: set | None = None, do_fix: bool = False,
+         is_nono: bool = False):
 
     logger.info("pwf_check: ENTRY")
 

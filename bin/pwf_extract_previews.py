@@ -108,8 +108,9 @@ def _tag_to_path(src_path: Path, tag: str) -> Path:
     return dst_path
 
 
-def main(src_path: Path, dst_path: Path | None, is_recursive: bool = False,
-         filter_file: Path | None = None, is_nono: bool = False):
+def main(src_path: Path, dst_path: Path | None = None,
+         is_recursive: bool = False, filter_file: Path | None = None,
+         is_nono: bool = False):
 
     # TODO:
     # * if dst_path is None, use same dir
@@ -122,9 +123,12 @@ def main(src_path: Path, dst_path: Path | None, is_recursive: bool = False,
     common.parse_path(src_path)
 
     if dst_path is None:
-        dst_path = src_path.parent
-    if not dst_path.is_dir() and str(dst_path) != "@lab":
+        # place preview file into src_path directory
+        dst_path = src_path if src_path.is_dir() else src_path.parent
+
+    if str(dst_path) != "@lab" and not dst_path.is_dir():
         raise ValueError("DST_PATH must be directory or '@lab'!")
+
     if str(dst_path) == "@lab":
         dst_path = _tag_to_path(src_path, str(dst_path))
         if is_nono:
@@ -153,20 +157,20 @@ def main(src_path: Path, dst_path: Path | None, is_recursive: bool = False,
         dst_file = dst_path / f"{file.name}-preview.jpg"
 
         if dst_file.exists():
-            logger.info(f"Ignore (file exists): {file}")
+            logger.info(
+                f"Ignore (exists): {file.relative_to(common.pwf_root_path)}")
             continue
 
         prefix = "NONO: " if is_nono else ""
         logger.info(f"{prefix}{file.relative_to(common.pwf_root_path)} -> " +
                     f"{dst_file.relative_to(common.pwf_root_path)}")
 
-        if is_nono:
-            continue
-
         if file.suffix[1:] in common.jpg_file_extensions:
-            extract_jpg_preview(file, dst_file)
+            if not is_nono:
+                extract_jpg_preview(file, dst_file)
         elif file.suffix[1:] in common.raw_file_extensions:
-            extract_raw_preview(file, dst_file)
+            if not is_nono:
+                extract_raw_preview(file, dst_file)
         else:
             logger.info(f"Ignored file due to unsupported extension: {file}")
 

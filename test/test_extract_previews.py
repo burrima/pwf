@@ -41,9 +41,14 @@ def initial_paths():
     test_common.create_paths((
         (f"{root}/1_original/2024/2024-10-30_ev_1/", 0),
         (f"{root}/1_original/2024/2024-10-30_ev_1/jpg/", 0),
-        (f"{root}/1_original/2024/2024-10-30_ev_1/jpg/DSC_100.jpg", 9000),
-        (f"{root}/1_original/2024/2024-10-30_ev_1/jpg/DSC_101.jpg", 9000),
-        (f"{root}/1_original/2024/2024-10-30_ev_1/jpg/DSC_102.jpg", 9000),
+        (f"{root}/1_original/2024/2024-10-30_ev_1/jpg/DSC_100.jpg", 0),
+        (f"{root}/1_original/2024/2024-10-30_ev_1/jpg/DSC_101.jpg", 0),
+        (f"{root}/1_original/2024/2024-10-30_ev_1/jpg/DSC_102.jpg", 0),
+        (f"{root}/2_lab/2024/2024-10-30_ev_1/", 0),
+        (f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/", 0),
+        (f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_100.jpg", 0),
+        (f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_101.jpg", 0),
+        (f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_102.jpg", 0),
         (f"{root}/3_album/2024/", 0),
         (f"{root}/4_print/2024/", 0),
     ))
@@ -68,6 +73,116 @@ def initial_paths():
     shutil.rmtree(Path(root), ignore_errors=True)
 
 
-# TODO: implement! Use -n (nono) for testing because there are no real images
-# def test_normal(initial_paths):
-#     pwf_extract_previews.main()
+def test_inplace_file(initial_paths, caplog):
+    path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_100.jpg")
+    pwf_extract_previews.main(path, is_nono=True)
+
+    text = "NONO: 2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_100.jpg -> " +\
+           "2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_100.jpg-preview.jpg"
+    assert text in caplog.text
+
+
+def test_inplace_dir(initial_paths, caplog):
+    path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/")
+    pwf_extract_previews.main(path, is_nono=True)
+
+    for i in range(100, 103):
+        text = \
+            f"NONO: 2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_{i}.jpg -> " +\
+            f"2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_{i}.jpg-preview.jpg"
+        assert text in caplog.text
+
+
+def test_src_file_to_dst_dir(initial_paths, caplog):
+    test_common.create_paths((
+        # dst_dir is not automatically created!
+        (f"{root}/2_lab/2024/2024-10-30_ev_1/asdf/", 0),
+    ))
+    src_path = Path(
+        f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_100.jpg")
+    dst_path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/asdf/")
+    pwf_extract_previews.main(src_path, dst_path, is_nono=True)
+
+    text = "NONO: 2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_100.jpg -> " +\
+           "2_lab/2024/2024-10-30_ev_1/asdf/DSC_100.jpg-preview.jpg"
+    assert text in caplog.text
+
+
+def test_src_file_to_dst_file(initial_paths, caplog):
+    test_common.create_paths((
+        # dst_dir is not automatically created!
+        (f"{root}/2_lab/2024/2024-10-30_ev_1/asdf/", 0),
+    ))
+    src_path = Path(
+        f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_100.jpg")
+    dst_path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/asdf/my.jpg")
+    with pytest.raises(ValueError) as ex:
+        pwf_extract_previews.main(src_path, dst_path, is_nono=True)
+    assert str(ex.value) == "DST_PATH must be directory or '@lab'!"
+
+
+def test_src_dir_to_dst_dir(initial_paths, caplog):
+    test_common.create_paths((
+        # dst_dir is not automatically created!
+        (f"{root}/2_lab/2024/2024-10-30_ev_1/asdf/", 0),
+    ))
+    src_path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/")
+    dst_path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/asdf/")
+    pwf_extract_previews.main(src_path, dst_path, is_nono=True)
+
+    for i in range(100, 103):
+        text = \
+            f"NONO: 2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_{i}.jpg -> " +\
+            f"2_lab/2024/2024-10-30_ev_1/asdf/DSC_{i}.jpg-preview.jpg"
+        assert text in caplog.text
+
+
+def test_src_dir_to_tag_lab(initial_paths, caplog):
+    src_path = Path(f"{root}/1_original/2024/2024-10-30_ev_1/jpg/")
+    dst_path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/1_preview/")
+    pwf_extract_previews.main(src_path, "@lab", is_nono=True)
+
+    text = f"NONO: Would create (if not existing): {dst_path}"
+    assert text in caplog.text
+
+    for i in range(100, 103):
+        text = \
+            f"NONO: 1_original/2024/2024-10-30_ev_1/jpg/DSC_{i}.jpg -> " +\
+            f"2_lab/2024/2024-10-30_ev_1/1_preview/DSC_{i}.jpg-preview.jpg"
+        assert text in caplog.text
+
+
+def test_ignore_existing_file(initial_paths, caplog):
+    test_common.create_paths((
+        # dst_dir is not automatically created!
+        (f"{root}/2_lab/2024/2024-10-30_ev_1/1_preview/" +
+         "DSC_101.jpg-preview.jpg", 0),
+    ))
+    src_path = Path(f"{root}/1_original/2024/2024-10-30_ev_1/jpg/")
+    dst_path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/1_preview/")
+    pwf_extract_previews.main(src_path, "@lab", is_nono=True)
+
+    text = f"NONO: Would create (if not existing): {dst_path}"
+    assert text in caplog.text
+
+    file = "1_original/2024/2024-10-30_ev_1/jpg/DSC_101.jpg"
+    text = f"Ignore (exists): {file}"
+    assert text in caplog.text
+
+    for i in [100, 102]:
+        text = \
+            f"NONO: 1_original/2024/2024-10-30_ev_1/jpg/DSC_{i}.jpg -> " +\
+            f"2_lab/2024/2024-10-30_ev_1/1_preview/DSC_{i}.jpg-preview.jpg"
+        assert text in caplog.text
+
+
+def test_unsupported_extension(initial_paths, caplog):
+    file = f"{root}/2_lab/2024/2024-10-30_ev_1/hello.xyz"
+    test_common.create_paths((
+        (file, 0),
+    ))
+    src_path = Path(file)
+    pwf_extract_previews.main(src_path, "@lab", is_nono=True)
+
+    text = f"Ignored file due to unsupported extension: {file}"
+    assert text in caplog.text

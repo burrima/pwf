@@ -22,6 +22,7 @@
 
 
 from bin import common
+from bin.pwf_protect import compute_md5sum
 from collections import defaultdict
 from pathlib import Path
 import argparse
@@ -36,28 +37,23 @@ logger = logging.getLogger(__name__)
 
 info_text =\
     """
-IGNORELIST
-    cs    ignore wrong checksums
-    dup   ignore duplicates
-    miss  ignore missing files (compared to md5 checksum file)
-    name  ignore name violations (not allowed!)
-    path  ingore path violations
-    prot  ignore protection violations
-    raw   ignore RAW derivatives
+Performs various checks against the given path. Checks can be disabled
+individually (see IGNORELIST). The inverse logic is possible as well, by
+enabling just what needs to be checked (see ONLYLIST).
 
-Performs various checks against the given folder:
+Checking the path ensures that files and directory structure are
+compliant to the assumptions made by the PWF scripts. It is particularly
+important to keep the 1_original/ folder clean from violations.
 
-  * file and folder names
-  * duplicates
-  * RAW derivatives (files other than RAW but with same name pattern)
-  * file and folder protection (useful only for 1_original/ folders)
-  * MD5 checksums (useful only for 1_original/ folders)
-  * Missing files (compared to MD5 checksum file) - not done when MD5
-    checking is enabled (is covered by MD5 checking)
-  * file and folder structure (path)
-
-Checks can be disabled individually, see OPTIONS above.
-    """ + common.fzf_info_text
+IGNORELIST/ONLYLIST
+    cs    MD5 checksums
+    dup   duplicates
+    miss  missing files (compared to md5 checksum file)
+    name  name violations
+    path  path structure
+    prot  protection violations (for 1_original/)
+    raw   RAW derivatives (with same name pattern)
+    """ + common.loglevel_info_text + common.fzf_info_text
 
 
 things_to_check = {"cs", "dup", "miss", "name", "path", "prot", "raw"}
@@ -122,7 +118,7 @@ def _check_duplicates(path: Path):
             continue
         for p in paths:
             # optimized: is_partial=True ready only first 8k data!
-            by_md5[common.md5sum(p, is_partial=True)].append(p)
+            by_md5[compute_md5sum(p, is_partial=True)].append(p)
     logger.debug(by_md5)
 
     # identify and report duplicate files:
@@ -207,9 +203,13 @@ def _check_paths(path: Path):
 def _check_checksums(path: Path):
     logger.info("check checksums...")
 
+    # TODO: implement!
+
 
 def _check_missing_files(path: Path):
     logger.info("check missing files...")
+
+    # TODO: implement!
 
 
 def _get_checklist(path: Path, ignorelist: set | None = None,
@@ -298,18 +298,18 @@ if __name__ == "__main__":
     group.add_argument("-i", "--ignorelist",
                        help="ignore check by list of comma-separated items")
     group.add_argument("-o", "--onlylist",
-                       help="check only the things listed (see IGNORELIST)")
+                       help="only check by list of comma-separated items")
 
     parser.add_argument("-f", "--fix",
                         help="auto-fix wrong names if possible",
                         action="store_true")
     parser.add_argument("-n", "--nono",
-                        help="nono, dry-run, only print what would be done",
+                        help="dry-run, only print what would be done",
                         action="store_true")
     parser.add_argument("-l", "--loglevel",
                         help="log level to use",
                         default="INFO")
-    parser.add_argument("path", nargs='?', default=Path.cwd())
+    parser.add_argument("path")
     args = parser.parse_args()
 
     logging.basicConfig(format='%(levelname)s: %(message)s',

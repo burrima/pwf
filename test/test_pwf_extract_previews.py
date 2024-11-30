@@ -138,9 +138,12 @@ def test_src_dir_to_dst_dir(initial_paths, caplog):
 
 
 def test_src_dir_to_tag_lab(initial_paths, caplog):
-    src_path = Path(f"{root}/1_original/2024/2024-10-30_ev_1/jpg/")
+    src_path = Path(f"{root}/1_original/2024/2024-10-30_ev_1/")
     dst_path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/1_preview/")
     pwf_extract_previews.main(src_path, "@lab", is_nono=True)
+
+    text = "Tag '@lab' automatically implies --recursive"
+    assert text in caplog.text
 
     text = f"NONO: Would create (if not existing): {dst_path}"
     assert text in caplog.text
@@ -158,12 +161,8 @@ def test_ignore_existing_file(initial_paths, caplog):
         (f"{root}/2_lab/2024/2024-10-30_ev_1/1_preview/" +
          "DSC_101.jpg-preview.jpg", 0),
     ))
-    src_path = Path(f"{root}/1_original/2024/2024-10-30_ev_1/jpg/")
-    dst_path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/1_preview/")
+    src_path = Path(f"{root}/1_original/2024/2024-10-30_ev_1/")
     pwf_extract_previews.main(src_path, "@lab", is_nono=True)
-
-    text = f"NONO: Would create (if not existing): {dst_path}"
-    assert text in caplog.text
 
     file = "1_original/2024/2024-10-30_ev_1/jpg/DSC_101.jpg"
     text = f"Ignore (exists): {file}"
@@ -182,7 +181,7 @@ def test_unsupported_extension(initial_paths, caplog):
         (file, 0),
     ))
     src_path = Path(file)
-    pwf_extract_previews.main(src_path, "@lab", is_nono=True)
+    pwf_extract_previews.main(src_path, None, is_nono=True)
 
     text = f"Ignored file due to unsupported extension: {file}"
     assert text in caplog.text

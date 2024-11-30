@@ -39,24 +39,23 @@ preview_size_tag: str = "FHD"  # how big preview files shall be
 info_text: str =\
     """
 Creates small preview images out of RAW and JPG files. For RAW files,
-the preview images are extracted from the exif info. For JPG files, a
-smaller version of the original is created.
+the preview images are extracted from the Exif info. For JPG files, a
+smaller version of the original is created for faster walk-through.
 
-SRC can be a file or a folder. Folders can be traversed recursively
-with the option -r. A DST_DIR can be specified where to place the
-preview images. If no destination is provided, the files will be
-placed where the script is called from.
+The argument src_path can be a file or a folder. A directory dst_path
+can be specified where to place the preview images. If no destination is
+provided, the files will be placed next to the source files.
 
-The option -f can be used to only create preview files if the source
-file name is listed in the given filter file. This is used to restore
-cleaned-up lab folders.
+The filter option -f can be used to only create preview files if the
+source file name is listed in the given filter file. This is used to
+restore cleaned-up lab folders.
 
-DST_DIR can be set to "@lab" to cause special behavior: In this case,
-SRC must point to an event folder in the 1_original/ tree. A preview
-of all JPG and RAW photos will be put into the corresponding event
-folder in the 2_lab/ tree, into a subfolder 1_preview/ (which implies
-option -r).
-    """ + common.fzf_info_text
+The dst_path can be set to the tag "@lab" to cause special behavior: In
+this case, src_path must point to an event folder in the 1_original/
+tree. A preview of all JPG and RAW photos will be put into the
+corresponding event folder in the 2_lab/ tree, into a subfolder
+1_preview/ (this automatically implies --recursive).
+    """ + common.loglevel_info_text + common.fzf_info_text
 
 
 def extract_raw_preview(src_path: Path, dst_path: Path) -> None:
@@ -64,7 +63,7 @@ def extract_raw_preview(src_path: Path, dst_path: Path) -> None:
     with rawpy.imread(str(src_path)) as raw:
         # raises rawpy.LibRawNoThumbnailError if thumbnail missing
         # raises rawpy.LibRawUnsupportedThumbnailError if unsupported
-        # format
+
         thumb = raw.extract_thumb()
         p = ImageFile.Parser()
         p.feed(thumb.data)
@@ -82,18 +81,21 @@ def _tag_to_path(src_path: Path, tag: str) -> Path:
     """
     Given a tag, try to determine dst_path automatically.
 
-    This only works in certain conditions which are checked here. If any is not
-    met, a ValueError is raised.
+    This only works in certain conditions which are checked here. If any
+    is not met, a ValueError is raised.
     """
 
     src = str(src_path)
     src_info = common.parse_path(src_path)
 
-    if tag not in common.tags:
+    if tag not in ["@lab"]:  # very restrictive!
         raise ValueError("Invalid tag provided!")
 
     if src_info.event is None:
-        raise ValueError("Linking to tag only allowed from within event dir!")
+        raise ValueError("Extract to tag only allowed from within event dir!")
+
+    if tag == "@lab" and not src_info.is_event_dir:
+        raise ValueError("src_path must be an event dir!")
 
     if src_info.state is None:
         raise ValueError("Invalid src_path provided!")
@@ -112,15 +114,14 @@ def main(src_path: Path, dst_path: Path | None = None,
          is_recursive: bool = False, filter_file: Path | None = None,
          is_nono: bool = False):
 
-    # TODO:
-    # * if dst_path is None, use same dir
-    # * if dst_path is @lab, do same as pwf-prepare-lab did (no extra script)
-    # * use pwf_liknk src_dir @lab instead of pwf-prepare-lab
-
     logger.info("pwf_extract_previews: ENTRY")
 
     # parse and check path:
     common.parse_path(src_path)
+
+    if dst_path == "@lab":
+        logger.info("Tag '@lab' automatically implies --recursive")
+        is_recursive = True
 
     if dst_path is None:
         # place preview file into src_path directory
@@ -184,7 +185,7 @@ if __name__ == "__main__":
         epilog=info_text)
 
     parser.add_argument("-r", "--recursive",
-                        help="recursively search through dirs of given SRC",
+                        help="recursively traverse src_path",
                         action="store_true")
     parser.add_argument("-f", "--filter_file",
                         help="to only generate previews of listed files")
@@ -194,7 +195,7 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--loglevel",
                         help="log level to use",
                         default="INFO")
-    parser.add_argument("src_path", nargs='?', default=Path.cwd())
+    parser.add_argument("src_path")
     parser.add_argument("dst_path", nargs='?', default=None)
     args = parser.parse_args()
 

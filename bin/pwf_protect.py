@@ -25,8 +25,8 @@ from bin import common
 from bin import pwf_check
 from pathlib import Path
 import argparse
+import hashlib
 import logging
-import subprocess
 
 
 logger = logging.getLogger(__name__)
@@ -43,6 +43,16 @@ This allows to add or delete files, but modification is still not
 allowed. With the flag -a all files can be unlocked too (use with
 care!).
     """ + common.fzf_info_text
+
+
+def compute_md5sum(path: Path, is_partial: bool = False) -> str:
+    # if is_partial=True, read only first 8k data (which should be fine for
+    # pictures).
+    # TODO: read chunked for big files (memory issue)
+    with open(path, "rb") as f:
+        data = f.read(8000 if is_partial else None)
+        md5sum = hashlib.md5(data).hexdigest()
+    return md5sum
 
 
 def unprotect(path: Path, is_all: bool = False):
@@ -64,8 +74,9 @@ def protect(path: Path, is_forced: bool = False):
         if p.is_dir():
             p.chmod(0o555)
         elif p.is_file():
-            cmd = f"md5sum -b {p} >> {md5_file}"
-            subprocess.run(cmd, shell=True)
+            md5sum = compute_md5sum(p, is_partial=False)
+            with open(md5_file, "a") as f:
+                f.write(f"{md5sum} *{p.relative_to(path.parent)}")
             p.lchmod(0o444)
 
 

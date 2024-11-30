@@ -67,7 +67,7 @@ def initial_paths():
     shutil.rmtree(Path(root), ignore_errors=True)
 
 
-def test_unprotect(initial_paths):
+def test_unprotect_protect_no_change(initial_paths):
     pwf_protect.main(Path(f"{root}/1_original/2024"),
                      do_unprotect=True, is_all=True)
     pwf_protect.main(Path(f"{root}/1_original/2024"))

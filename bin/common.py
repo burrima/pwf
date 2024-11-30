@@ -22,7 +22,6 @@
 
 from enum import Enum
 from pathlib import Path
-import hashlib
 import logging
 import re
 import os
@@ -82,12 +81,22 @@ valid_file_locations: dict[str, str] = {
 
 fzf_info_text: str =\
     """
-FZF: Any path can be specified either by by normal means of bash (e.g.
-with tab completion) or by using the FZF tool. Type **<tab> to bring
-the FZF tool to front where you can select the desired path much
-faster (see man fzf for more details). Paths are automatically bound
-to the pwf folder structure, so this script can be used from anywhere
-with consistent behavior.
+FZF PATH EXPANSION
+    Any path can be specified either by by normal means of bash (e.g.
+    with tab completion) or by using the FZF tool. Type **<tab> to bring
+    the FZF tool to front where you can select the desired path much
+    faster (see man fzf for more details). Paths are automatically bound
+    to the pwf folder structure, so this script can be used from
+    anywhere with consistent behavior.
+    """
+
+
+loglevel_info_text: str =\
+    """
+LOGLEVEL
+    WARNING print warings and errors only (be quiet by default)
+    INFO    default print level
+    DEBUG   print additional info and give full exception trace log
     """
 
 
@@ -170,16 +179,6 @@ def parse_path(path: Path) -> Pwf_path_info:
         raise ValueError("Cannot parse state from path!")
 
     return info
-
-
-def md5sum(path: Path, is_partial: bool = False) -> str:
-    # if is_partial=True, read only first 8k data (which should be fine for
-    # pictures).
-    # TODO: read chunked for big files (memory issue)
-    with open(path, "rb") as f:
-        data = f.read(8000 if is_partial else None)
-        md5sum = hashlib.md5(data).hexdigest()
-    return md5sum
 
 
 def get_orig_name(path: Path, with_extension: bool = False) -> str:

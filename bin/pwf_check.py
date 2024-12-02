@@ -22,7 +22,7 @@
 
 
 from bin import common
-from bin.pwf_protect import compute_md5sum
+from bin.common import compute_md5sum, pwf_path
 from collections import defaultdict
 from pathlib import Path
 import argparse
@@ -60,15 +60,19 @@ things_to_check = {"cs", "dup", "miss", "name", "path", "prot", "raw"}
 
 
 def _check_names(path: Path):
+    """
+    Verifies that all files and subdirs (recursive!) in the path only contain
+    legal characters (as per common.legal_characters).
+    """
     logger.info("check names...")
 
     regex = rf"^[{common.legal_characters}]+$"
     found_any = False
 
     for p in [path] + list(path.glob("**/*")):
-        logger.debug(f"  {p.name}")
+        logger.debug(f"name: {p.name}")
         if not re.match(regex, p.name):
-            logger.info(f"Illegal: '{p}'")
+            logger.info(f"Illegal: '{pwf_path(p)}'")
             found_any = True
 
     if found_any:
@@ -76,6 +80,9 @@ def _check_names(path: Path):
 
 
 def _fix_names(path: Path, is_nono: bool):
+    """
+    Tries to fix illegal names as per common.name_replacements.
+    """
     logger.info("fix names...")
 
     regex = rf"^[{common.legal_characters}]+$"
@@ -84,9 +91,9 @@ def _fix_names(path: Path, is_nono: bool):
         logger.info("Dry-run: would do the following:")
 
     files_to_fix = []
-    paths = list(path.glob("**/*")) + [path]
-    for p in sorted(paths, reverse=True):
-        logger.debug(f"  {p.name}")
+    paths = list(path.glob("**/*")) + [path]  # include path itself
+
+    for p in sorted(paths, reverse=True):  # from subdirs to top...
         if not re.match(regex, p.name):
             files_to_fix.append(p)
 
@@ -94,7 +101,9 @@ def _fix_names(path: Path, is_nono: bool):
         newname = p.name
         for r in common.name_replacements:
             newname = newname.replace(r[0], r[1])
-        logger.info(f"  '{p}' -> '{newname}'")
+
+        logger.info(f"rename: '{pwf_path(p)}' -> '{newname}'")
+
         if not is_nono:
             new_p = p.replace(p.parent / newname)
             if p == path:
@@ -102,50 +111,66 @@ def _fix_names(path: Path, is_nono: bool):
 
 
 def _check_duplicates(path: Path):
+    """
+    Check that there are no duplicate files in all sub-paths of path.
+    """
     logger.info("check duplicates...")
 
     # find potential duplicates by size (much faster!):
     by_size = defaultdict(list)
+
     for p in path.glob("**/*"):
         if p.is_file():
             by_size[p.stat().st_size].append(p)
-    logger.debug(by_size)
+
+    logger.debug(f"{by_size=}")
 
     # from potential duplicates, compute md5 sum:
     by_md5 = defaultdict(list)
+
     for paths in by_size.values():
         if len(paths) < 2:
             continue
+
         for p in paths:
             # optimized: is_partial=True ready only first 8k data!
             by_md5[compute_md5sum(p, is_partial=True)].append(p)
-    logger.debug(by_md5)
+
+    logger.debug(f"{by_md5}")
 
     # identify and report duplicate files:
     found_any = False
+
     for paths in by_md5.values():
         if len(paths) < 2:
             continue
+
         found_any = True
         logger.info("Found identical files:")
+
         for p in paths:
-            logger.info(f"    {p}")
+            logger.info(f"    {pwf_path(p)}")
 
     if found_any:
         raise AssertionError("Found duplicate files!")
 
 
 def _check_protection(path: Path):
+    """
+    Check if no files and no dirs have write rights set.
+    """
     logger.info("check protection...")
 
     found_any = False
 
-    for p in [path] + list(path.glob("**/*")):
+    for p in [path] + list(path.glob("**/*")):  # include path itself
+        # linked files are allowed to be writable
         mode = p.stat(follow_symlinks=False).st_mode
         ogo_mode = oct(mode)[-3:]
         is_locked = ((int(ogo_mode, 16) & 0x222) == 0)
+
         if not is_locked:
-            logger.info(f"Not protected: {stat.filemode(mode)} {p}")
+            logger.info(f"Not protected: {stat.filemode(mode)} {pwf_path(p)}")
             found_any = True
 
     if found_any:
@@ -153,6 +178,11 @@ def _check_protection(path: Path):
 
 
 def _check_raw_derivatives(path: Path):
+    """
+    Checks that there are no files with names derived from original raw names.
+
+    This check relies on common.get_orig_name()
+    """
     logger.info("check raw derivatives...")
 
     found_any = False
@@ -162,10 +192,11 @@ def _check_raw_derivatives(path: Path):
             stem = common.get_orig_name(p, with_extension=False)
 
             files_with_same_stem = list(path.glob(f"**/*{stem}*"))
+
             if len(files_with_same_stem) > 1:
-                files = "\n  ".join(
-                    [str(p) for p in sorted(files_with_same_stem)])
-                logger.info(f"Files with same name:\n  {files}")
+                logger.info("Files with same name:")
+                for p in sorted(files_with_same_stem):
+                    logger.info(f"    {pwf_path(p)}")
                 found_any = True
 
     if found_any:
@@ -174,27 +205,27 @@ def _check_raw_derivatives(path: Path):
 
 def _check_paths(path: Path):
     """
-    Asserts that files with certain endings are only in allowed folders.
+    Asserts that files with certain suffix are only in allowed folders.
     """
     logger.info("check paths...")
 
     found_any = False
-    n_ignored = 0
+    ignored: set[str] = set()
 
     for p in path.glob("**/*"):
-        if not p.is_file():
+        if not p.is_file():  # ignore dirs (TODO: what is with links?)
             continue
 
-        suffix = p.suffix[1:]
+        suffix = p.suffix
         if suffix in common.valid_file_locations.keys():
             if p.parent.name != common.valid_file_locations[suffix]:
-                logger.info(f"File in wrong location: {p}")
+                logger.info(f"File in wrong location: {pwf_path(p)}")
                 found_any = True
         else:
-            n_ignored += 1
+            ignored.add(suffix)
 
-    if n_ignored > 0:
-        logger.warning(f"Ignored {n_ignored} files in path verification!")
+    if len(ignored) > 0:
+        logger.warning(f"Ignored suffixes: {ignored}")
 
     if found_any:
         raise AssertionError("Found files in wrong locations!")
@@ -203,7 +234,13 @@ def _check_paths(path: Path):
 def _check_checksums(path: Path):
     logger.info("check checksums...")
 
-    # TODO: implement!
+    md5sums_file = path.parent / f"{path.name}.md5"
+
+    md5sums = dict()
+    with open(md5sums_file, "r") as f:
+        for line in f.readlines():
+            key, value = line.strip().split(" ", 1)
+            md5sums[key] = value.strip()
 
 
 def _check_missing_files(path: Path):
@@ -214,6 +251,9 @@ def _check_missing_files(path: Path):
 
 def _get_checklist(path: Path, ignorelist: set | None = None,
                    onlylist: set | None = None):
+    """
+    Given ignorelist and pathlist, determine what to check
+    """
 
     if ignorelist is None:
         ignorelist = set()
@@ -225,6 +265,7 @@ def _get_checklist(path: Path, ignorelist: set | None = None,
         if "dup" in ignorelist:
             raise ValueError(
                 "Ignoring duplicate violations is not allowed in 0_new!")
+
         if "path" in ignorelist:
             raise ValueError(
                 "Ignoring path violations is not allowed in 0_new!")
@@ -233,12 +274,15 @@ def _get_checklist(path: Path, ignorelist: set | None = None,
         ignorelist.update({"cs", "miss", "prot"})
     elif path_info.state == common.State.LAB:
         ignorelist.update({"cs", "miss", "prot", "path", "raw"})
+    elif path_info.state != common.State.ORIGINAL:
+        ignorelist.update({"cs", "prot"})
 
     checklist = copy.copy(things_to_check) if len(onlylist) == 0 else onlylist
     checklist -= ignorelist
 
     if "name" not in checklist:
         logger.warning("Ignoring name violations is strongly discouraged!")
+
     if checklist == set():
         raise ValueError("Everything ignored, nothing to check!")
 

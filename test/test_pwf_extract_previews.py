@@ -27,8 +27,6 @@ from bin import common
 from test import common as test_common
 from pathlib import Path
 import shutil
-import os
-import logging
 
 
 root = common.pwf_root_path

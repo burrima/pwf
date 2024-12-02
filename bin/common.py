@@ -22,6 +22,7 @@
 
 from enum import Enum
 from pathlib import Path
+import hashlib
 import logging
 import re
 import os
@@ -35,7 +36,9 @@ legal_characters: str = r"\wäöüÄÖÜé~._-"
 
 pwf_root = os.getenv("PWF_ROOT_PATH")
 if pwf_root is None:
-    raise RuntimeError("PWF_ROOT_PATH is not defined. Is envstup.sh sourced?")
+    raise ValueError("PWF_ROOT_PATH is not defined. Is envstup.sh sourced?")
+if re.match(rf"^[{legal_characters}]+$", pwf_root):
+    raise ValueError("PWF_ROOT_PATH contains illegal characters!")
 pwf_root_path = Path(pwf_root)
 
 
@@ -61,22 +64,22 @@ type_dirs: set[str] = {"raw", "jpg", "audio", "video"}
 
 
 valid_file_locations: dict[str, str] = {
-    "NEF": "raw",
-    "NRW": "raw",
-    "CR2": "raw",
-    "jpg": "jpg",
-    "jpeg": "jpg",
-    "JPG": "jpg",
-    "JPEG": "jpg",
-    "MOV": "video",
-    "mp4": "video",
-    "MP4": "video",
-    "mpeg": "video",
-    "mov": "video",
-    "MOV": "video",
-    "wav": "audio",
-    "WAV": "audio",
-    "mp3": "audio"}
+    ".NEF": "raw",
+    ".NRW": "raw",
+    ".CR2": "raw",
+    ".jpg": "jpg",
+    ".jpeg": "jpg",
+    ".JPG": "jpg",
+    ".JPEG": "jpg",
+    ".MOV": "video",
+    ".mp4": "video",
+    ".MP4": "video",
+    ".mpeg": "video",
+    ".mov": "video",
+    ".MOV": "video",
+    ".wav": "audio",
+    ".WAV": "audio",
+    ".mp3": "audio"}
 
 
 fzf_info_text: str =\
@@ -204,3 +207,22 @@ def get_orig_name(path: Path, with_extension: bool = False) -> str:
     idx = match.start()
     name = name[idx:]
     return name
+
+
+def pwf_path(path: Path) -> Path:
+    """
+    Return path relative to pwf_root_path (shortcut used mostly for printing)
+
+    Memoric: convert a path to a pwf-specific path (pwf_path)
+    """
+    return path.relative_to(pwf_root_path)
+
+
+def compute_md5sum(path: Path, is_partial: bool = False) -> str:
+    # if is_partial=True, read only first 8k data (which should be fine for
+    # pictures).
+    # TODO: read chunked for big files (memory issue)
+    with open(path, "rb") as f:
+        data = f.read(8000 if is_partial else None)
+        md5sum = hashlib.md5(data).hexdigest()
+    return md5sum

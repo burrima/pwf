@@ -23,6 +23,7 @@
 import pytest
 from bin import pwf_init
 from bin import pwf_check
+from bin import pwf_protect
 from bin import common
 from test import common as test_common
 from pathlib import Path
@@ -48,22 +49,12 @@ def initial_paths():
         (f"{root}/4_print/2024/", 0),
     ))
 
-    path = Path(f"{root}/1_original").glob("**/*")
-    for p in sorted(path, reverse=True):
-        p.chmod(0o555) if p.is_dir() else p.lchmod(0o444)
-    for p in sorted(Path(f"{root}/3_album").glob("**/*"), reverse=True):
-        p.chmod(0o555) if p.is_dir() else p.lchmod(0o444)
-    for p in sorted(Path(f"{root}/4_print").glob("**/*"), reverse=True):
-        p.chmod(0o555) if p.is_dir() else p.lchmod(0o444)
+    pwf_protect.main(Path(f"{root}/1_original/2024"), is_forced=True)
 
     yield
 
-    for p in sorted(Path(f"{root}/1_original").glob("**/*")):
-        p.chmod(0o775) if p.is_dir() else p.lchmod(0o664)
-    for p in sorted(Path(f"{root}/3_album").glob("**/*")):
-        p.chmod(0o775) if p.is_dir() else p.lchmod(0o664)
-    for p in sorted(Path(f"{root}/4_print").glob("**/*")):
-        p.chmod(0o775) if p.is_dir() else p.lchmod(0o664)
+    pwf_protect.main(Path(f"{root}/1_original/2024"),
+                     do_unprotect=True, is_all=True)
 
     shutil.rmtree(Path(root), ignore_errors=True)
 
@@ -86,7 +77,7 @@ def test_cs(initial_paths):
     pass
 
 
-def test_dup(initial_paths):
+def test_dup(initial_paths, caplog):
     logging.info(">>> create 2 files of same size in 0_new")
     p1 = f"{root}/0_new/2024-10-30_example_event/jpg/a.jpg"
     p2 = f"{root}/0_new/2024-10-30_example_event/jpg/b.jpg"
@@ -110,6 +101,11 @@ def test_dup(initial_paths):
 
     assert str(ex.value) == "Found duplicate files!"
 
+    text = "INFO Found identical files:\n"
+    text += "INFO     0_new/2024-10-30_example_event/jpg/a.jpg\n"
+    text += "INFO     0_new/2024-10-30_example_event/jpg/b.jpg"
+    assert text in caplog.text
+
 
 def test_miss(initial_paths):
     # TODO: implement!
@@ -129,9 +125,9 @@ def test_name(initial_paths, caplog):
 
     assert str(ex.value) == "Found illegal chars in file or folder names!"
 
-    event_path = f"{root}/0_new/2024-10-30_event & space"
-    assert f"Illegal: '{event_path}'" in caplog.text
-    assert f"Illegal: '{event_path}/jpg/my file.jpg'" in caplog.text
+    event_path = "0_new/2024-10-30_event & space"
+    assert f"INFO Illegal: '{event_path}'" in caplog.text
+    assert f"INFO Illegal: '{event_path}/jpg/my file.jpg'" in caplog.text
 
 
 def test_fix_name_nono(initial_paths, caplog):
@@ -145,11 +141,11 @@ def test_fix_name_nono(initial_paths, caplog):
     pwf_check.main(Path(f"{root}/0_new"), onlylist={"name", },
                    do_fix=True, is_nono=True)
 
-    assert "Dry-run: would do the following:" in caplog.text
-    text = f"'{root}/0_new/2024-10-30_event & space/jpg/my file.jpg' ->" +\
-        " 'my_file.jpg'"
+    assert "INFO Dry-run: would do the following:" in caplog.text
+    text = "INFO rename: '0_new/2024-10-30_event & space/jpg/my file.jpg'" +\
+        " -> 'my_file.jpg'"
     assert text in caplog.text
-    text = f"'{root}/0_new/2024-10-30_event & space' ->" +\
+    text = "INFO rename: '0_new/2024-10-30_event & space' ->" +\
         " '2024-10-30_event_und_space'"
     assert text in caplog.text
 
@@ -165,11 +161,11 @@ def test_fix_name(initial_paths, caplog):
     pwf_check.main(
         Path(f"{root}/0_new"), onlylist={"name", }, do_fix=True)
 
-    assert "Dry-run: would do the following:" not in caplog.text
-    text = f"'{root}/0_new/2024-10-30_event & space/jpg/my file.jpg' ->" +\
+    assert "INFO Dry-run: would do the following:" not in caplog.text
+    text = "rename: '0_new/2024-10-30_event & space/jpg/my file.jpg' ->" +\
         " 'my_file.jpg'"
     assert text in caplog.text
-    text = f"'{root}/0_new/2024-10-30_event & space' ->" +\
+    text = "rename: '0_new/2024-10-30_event & space' ->" +\
         " '2024-10-30_event_und_space'"
     assert text in caplog.text
 
@@ -177,8 +173,9 @@ def test_fix_name(initial_paths, caplog):
 def test_path(initial_paths, caplog):
     logging.info(">>> create files in wrong subdirs")
     test_common.create_paths((
-        (f"{root}/0_new/2024-10-30_example_event/raw/myFile.jpg", 512),
-        (f"{root}/0_new/2024-10-30_example_event/jpg/myFile.NEF", 512),
+        (f"{root}/0_new/2024-10-30_example_event/raw/myFile.jpg", 0),
+        (f"{root}/0_new/2024-10-30_example_event/jpg/myFile.NEF", 0),
+        (f"{root}/0_new/2024-10-30_example_event/jpg/myFile.asdf", 0),
     ))
 
     logging.info(">>> check path violations")
@@ -187,11 +184,12 @@ def test_path(initial_paths, caplog):
 
     assert str(ex.value) == "Found files in wrong locations!"
 
-    event_path = f"{root}/0_new/2024-10-30_example_event"
-    assert f"File in wrong location: {event_path}/jpg/myFile.NEF" in\
+    event_path = "0_new/2024-10-30_example_event"
+    assert f"INFO File in wrong location: {event_path}/jpg/myFile.NEF" in\
         caplog.text
-    assert f"File in wrong location: {event_path}/raw/myFile.jpg" in\
+    assert f"INFO File in wrong location: {event_path}/raw/myFile.jpg" in\
         caplog.text
+    assert "WARNING Ignored suffixes: {'.asdf'}" in caplog.text
 
 
 def test_prot(initial_paths, caplog):
@@ -210,8 +208,8 @@ def test_prot(initial_paths, caplog):
             Path(f"{root}/1_original/2024"), onlylist={"prot", })
 
     assert str(ex.value) == "Found unprotected files or directories!"
-    event_path = f"{root}/1_original/2024/2024-10-30_ev_1"
-    text = f"Not protected: -rw-rw-r-- {event_path}/jpg/DSC_100.jpg"
+    event_path = "1_original/2024/2024-10-30_ev_1"
+    text = f"INFO Not protected: -rw-rw-r-- {event_path}/jpg/DSC_100.jpg"
     assert text in caplog.text
 
 
@@ -225,9 +223,9 @@ def test_raw(initial_paths, caplog):
         pwf_check.main(Path(f"{root}/0_new/2024-10-30_example_event"))
 
     assert str(ex.value) == "Found RAW derivatives!"
-    text = "Files with same name:\n"
-    text += f"  {root}/0_new/2024-10-30_example_event/jpg/DSC_1237.jpg\n"
-    text += f"  {root}/0_new/2024-10-30_example_event/raw/DSC_1237.NEF"
+    text = "INFO Files with same name:\n"
+    text += "INFO     0_new/2024-10-30_example_event/jpg/DSC_1237.jpg\n"
+    text += "INFO     0_new/2024-10-30_example_event/raw/DSC_1237.NEF"
     assert text in caplog.text
 
 

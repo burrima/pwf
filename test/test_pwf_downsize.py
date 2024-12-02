@@ -21,13 +21,9 @@
 #
 
 import pytest
-from bin import pwf_init
 from bin import pwf_downsize
 from bin import common
-from test import common as test_common
 from pathlib import Path
-import shutil
-import os
 import logging
 
 

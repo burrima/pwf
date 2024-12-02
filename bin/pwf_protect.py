@@ -23,9 +23,9 @@
 
 from bin import common
 from bin import pwf_check
+from bin.common import compute_md5sum
 from pathlib import Path
 import argparse
-import hashlib
 import logging
 
 
@@ -45,32 +45,26 @@ care!).
     """ + common.fzf_info_text
 
 
-def compute_md5sum(path: Path, is_partial: bool = False) -> str:
-    # if is_partial=True, read only first 8k data (which should be fine for
-    # pictures).
-    # TODO: read chunked for big files (memory issue)
-    with open(path, "rb") as f:
-        data = f.read(8000 if is_partial else None)
-        md5sum = hashlib.md5(data).hexdigest()
-    return md5sum
-
-
 def unprotect(path: Path, is_all: bool = False):
     md5_file = path.parent / (path.name + ".md5")
+
     for p in sorted(path.glob("**/*")):
         if p.is_dir():
             p.chmod(0o775)
         elif is_all and p.is_file():
             p.lchmod(0o664)
+
     if md5_file.exists():
         md5_file.lchmod(0o664)
 
 
 def protect(path: Path, is_forced: bool = False):
     md5_file = path.parent / (path.name + ".md5")
+
     if not is_forced:
         pwf_check.main(path, ignorelist={"prot", })
-    for p in sorted(path.glob("**/*")):
+
+    for p in sorted([path] + list(path.glob("**/*"))):
         if p.is_dir():
             p.chmod(0o555)
         elif p.is_file():

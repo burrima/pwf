@@ -74,7 +74,22 @@ def test_normal(initial_paths):
 
 def test_cs(initial_paths):
     # TODO: implement!
-    pass
+
+    pwf_protect.main(Path(f"{root}/1_original/2024"),
+                     do_unprotect=True, is_all=True)
+
+    with pytest.raises(AssertionError) as ex:
+        pwf_check.main(Path(f"{root}/1_original/2024"))
+    assert str(ex.value) == "Found unprotected files or directories!"
+    # TODO: check which ones are wrong!
+
+    with open(f"{root}/1_original/2024.md5", "a") as f:
+        f.write("0123 *2024/test.txt\n")
+
+    pwf_protect.main(Path(f"{root}/1_original/2024"), is_forced=True)
+    with pytest.raises(AssertionError) as ex:
+        pwf_check.main(Path(f"{root}/1_original/2024"))
+    assert str(ex.value) == "Found missing files or files with wrong MD5 sum"
 
 
 def test_dup(initial_paths, caplog):
@@ -109,7 +124,18 @@ def test_dup(initial_paths, caplog):
 
 def test_miss(initial_paths):
     # TODO: implement!
-    pass
+
+    pwf_protect.main(Path(f"{root}/1_original/2024"),
+                     do_unprotect=True, is_all=True)
+
+    with open(f"{root}/1_original/2024.md5", "a") as f:
+        f.write("0123 *2024/test.txt\n")
+
+    pwf_protect.main(Path(f"{root}/1_original/2024"), is_forced=True)
+
+    with pytest.raises(AssertionError) as ex:
+        pwf_check.main(Path(f"{root}/1_original/2024"), onlylist={"miss"})
+    assert str(ex.value) == "Found missing files"
 
 
 def test_name(initial_paths, caplog):

@@ -218,11 +218,12 @@ def pwf_path(path: Path) -> Path:
     return path.relative_to(pwf_root_path)
 
 
-def compute_md5sum(path: Path, is_partial: bool = False) -> str:
+def compute_md5sum(path: Path, is_partial: bool = False,
+                   is_binary: bool = True) -> str:
     # if is_partial=True, read only first 8k data (which should be fine for
     # pictures).
     # TODO: read chunked for big files (memory issue)
-    with open(path, "rb") as f:
-        data = f.read(8000 if is_partial else None)
+    with open(path, "rb" if is_binary else "r") as f:
+        data = f.read(8000) if is_partial else f.read()
         md5sum = hashlib.md5(data).hexdigest()
     return md5sum

@@ -231,22 +231,61 @@ def _check_paths(path: Path):
         raise AssertionError("Found files in wrong locations!")
 
 
+def _read_md5sums_file(path: Path):
+    md5sums_file = path.parent / f"{path.name}.md5"
+    md5sums = dict()
+
+    with open(md5sums_file, "r") as f:
+        for line in f.readlines():
+            md5sum, path_str = line.strip().split(" ", 1)
+
+            is_binary = path_str.startswith("*")
+            file_path = path.parent / (path_str[1:] if is_binary else path_str)
+            md5sums[md5sum] = (file_path, is_binary)
+
+    return md5sums
+
+
 def _check_checksums(path: Path):
     logger.info("check checksums...")
 
-    md5sums_file = path.parent / f"{path.name}.md5"
+    md5sums = _read_md5sums_file(path)
+    found_any = False
 
-    md5sums = dict()
-    with open(md5sums_file, "r") as f:
-        for line in f.readlines():
-            key, value = line.strip().split(" ", 1)
-            md5sums[key] = value.strip()
+    for md5sum_exp, info in md5sums.items():
+        file_path = info[0]
+        is_binary = info[1]
+
+        try:
+            md5sum = common.compute_md5sum(file_path, is_binary=is_binary)
+        except FileNotFoundError:
+            logger.error(f"File missing: {pwf_path(file_path)}")
+            found_any = True
+            continue
+
+        if md5sum != md5sum_exp:
+            logger.error(f"MD5 sum error: {md5sum_exp} {pwf_path(file_path)}")
+            found_any = True
+
+    if found_any:
+        raise AssertionError("Found missing files or files with wrong MD5 sum")
 
 
 def _check_missing_files(path: Path):
     logger.info("check missing files...")
 
-    # TODO: implement!
+    md5sums = _read_md5sums_file(path)
+    found_any = False
+
+    for md5sum_exp, info in md5sums.items():
+        file_path = info[0]
+
+        if not file_path.exists():
+            logger.error(f"File missing: {pwf_path(file_path)}")
+            found_any = True
+
+    if found_any:
+        raise AssertionError("Found missing files")
 
 
 def _get_checklist(path: Path, ignorelist: set | None = None,
@@ -325,8 +364,8 @@ def main(path: Path, ignorelist: set | None = None,
 
     if "cs" in checklist:
         _check_checksums(path)
-
-    if "miss" in checklist:
+    elif "miss" in checklist:
+        # cs includes check for missing files!
         _check_missing_files(path)
 
     logger.info("pwf_check: OK")

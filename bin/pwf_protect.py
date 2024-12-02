@@ -70,7 +70,7 @@ def protect(path: Path, is_forced: bool = False):
         elif p.is_file():
             md5sum = compute_md5sum(p, is_partial=False)
             with open(md5_file, "a") as f:
-                f.write(f"{md5sum} *{p.relative_to(path.parent)}")
+                f.write(f"{md5sum} *{p.relative_to(path.parent)}\n")
             p.lchmod(0o444)
 
 

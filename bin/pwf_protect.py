@@ -46,13 +46,13 @@ care!).
 
 
 def unprotect(path: Path, is_all: bool = False):
-    md5_file = path.parent / (path.name + ".md5")
-
-    for p in sorted(path.glob("**/*")):
+    for p in sorted([path] + list(path.glob("**/*"))):
         if p.is_dir():
             p.chmod(0o775)
         elif is_all and p.is_file():
             p.lchmod(0o664)
+
+    md5_file = path.parent / (path.name + ".md5")
 
     if md5_file.exists():
         md5_file.lchmod(0o664)
@@ -62,7 +62,7 @@ def protect(path: Path, is_forced: bool = False):
     md5_file = path.parent / (path.name + ".md5")
 
     if not is_forced:
-        pwf_check.main(path, ignorelist={"prot", })
+        pwf_check.main(path, ignorelist={"cs", "miss", "prot"})
 
     for p in sorted([path] + list(path.glob("**/*"))):
         if p.is_dir():

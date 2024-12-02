@@ -275,7 +275,7 @@ def _get_checklist(path: Path, ignorelist: set | None = None,
     elif path_info.state == common.State.LAB:
         ignorelist.update({"cs", "miss", "prot", "path", "raw"})
     elif path_info.state != common.State.ORIGINAL:
-        ignorelist.update({"cs", "prot"})
+        ignorelist.update({"cs", "prot", "miss"})
 
     checklist = copy.copy(things_to_check) if len(onlylist) == 0 else onlylist
     checklist -= ignorelist

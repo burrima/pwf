@@ -251,12 +251,12 @@ def test_get_checklist_normal():
     logging.info(">>> assert default checklist for 3_album")
     p = Path(f"{root}/3_album/")
     cl = pwf_check._get_checklist(p)
-    assert cl == pwf_check.things_to_check
+    assert cl == {"name", "dup", "path", "raw"}
 
     logging.info(">>> assert default checklist for 4_print")
     p = Path(f"{root}/4_print/")
     cl = pwf_check._get_checklist(p)
-    assert cl == pwf_check.things_to_check
+    assert cl == {"name", "dup", "path", "raw"}
 
 
 def test_get_checklist_ignore(caplog):

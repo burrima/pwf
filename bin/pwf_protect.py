@@ -22,27 +22,28 @@
 
 
 from bin import common
-from bin import pwf_check
-from bin.common import compute_md5sum
+from bin.common import pwf_path
+# from bin import pwf_check
 from pathlib import Path
+from textwrap import dedent
 import argparse
+import hashlib
 import logging
 
 
 logger = logging.getLogger(__name__)
 
 
-info_text =\
+info_text: str = dedent(
     """
-Protects or unprotects a file or folder provided by PATH. Normally
-only used against 1_original/YEAR, but can be used for any PATH.
-Calls pwf_check.py before protection is applied (unless -f is set).
+    Protects or unprotects a file or folder provided by PATH. Normally only
+    used against 1_original/YEAR, but can be used for any PATH. Calls
+    pwf_check.py before protection is applied (unless -f is set).
 
-By default, only folders are unprotected, but files remain protected.
-This allows to add or delete files, but modification is still not
-allowed. With the flag -a all files can be unlocked too (use with
-care!).
-    """ + common.fzf_info_text
+    By default, only folders are unprotected, but files remain protected. This
+    allows to add or delete files, but modification is still not allowed. With
+    the flag -a all files can be unlocked too (use with care!).
+    """) + common.info_text
 
 
 def unprotect(path: Path, is_all: bool = False):
@@ -61,8 +62,8 @@ def unprotect(path: Path, is_all: bool = False):
 def protect(path: Path, is_forced: bool = False):
     md5_file = path.parent / (path.name + ".md5")
 
-    if not is_forced:
-        pwf_check.main(path, ignorelist={"cs", "miss", "prot"})
+    # if not is_forced:
+    #     pwf_check.main(path, ignorelist={"cs", "miss", "prot"})
 
     for p in sorted([path] + list(path.glob("**/*"))):
         if p.is_dir():
@@ -72,6 +73,74 @@ def protect(path: Path, is_forced: bool = False):
             with open(md5_file, "a") as f:
                 f.write(f"{md5sum} *{p.relative_to(path.parent)}\n")
             p.lchmod(0o444)
+
+
+def compute_md5sum(path: Path, is_partial: bool = False,
+                   is_binary: bool = True) -> str:
+    # if is_partial=True, read only first 8k data (which should be fine for
+    # pictures).
+    # TODO: read chunked for big files (memory issue)
+    with open(path, "rb" if is_binary else "r") as f:
+        data = f.read(8000) if is_partial else f.read()
+        md5sum = hashlib.md5(data).hexdigest()
+    return md5sum
+
+
+def _read_md5sums_file(path: Path):
+    md5sums_file = path.parent / f"{path.name}.md5"
+    md5sums = dict()
+
+    with open(md5sums_file, "r") as f:
+        for line in f.readlines():
+            md5sum, path_str = line.strip().split(" ", 1)
+
+            is_binary = path_str.startswith("*")
+            file_path = path.parent / (path_str[1:] if is_binary else path_str)
+            md5sums[md5sum] = (file_path, is_binary)
+
+    return md5sums
+
+
+def check_checksums(path: Path):
+    logger.info("check checksums...")
+
+    md5sums = _read_md5sums_file(path)
+    found_any = False
+
+    for md5sum_exp, info in md5sums.items():
+        file_path = info[0]
+        is_binary = info[1]
+
+        try:
+            md5sum = compute_md5sum(file_path, is_binary=is_binary)
+        except FileNotFoundError:
+            logger.error(f"File missing: {pwf_path(file_path)}")
+            found_any = True
+            continue
+
+        if md5sum != md5sum_exp:
+            logger.error(f"MD5 sum error: {md5sum_exp} {pwf_path(file_path)}")
+            found_any = True
+
+    if found_any:
+        raise AssertionError("Found missing files or files with wrong MD5 sum")
+
+
+def check_missing_files(path: Path):
+    logger.info("check missing files...")
+
+    md5sums = _read_md5sums_file(path)
+    found_any = False
+
+    for md5sum_exp, info in md5sums.items():
+        file_path = info[0]
+
+        if not file_path.exists():
+            logger.error(f"File missing: {pwf_path(file_path)}")
+            found_any = True
+
+    if found_any:
+        raise AssertionError("Found missing files")
 
 
 def main(path: Path, do_unprotect: bool = False, is_forced: bool = False,

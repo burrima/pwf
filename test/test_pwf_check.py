@@ -59,17 +59,11 @@ def initial_paths():
     shutil.rmtree(Path(root), ignore_errors=True)
 
 
-def test_normal(initial_paths):
-    logging.info(">>> check 0_new")
-    pwf_check.main(Path(f"{root}/0_new"))
-    logging.info(">>> check 1_original")
-    pwf_check.main(Path(f"{root}/1_original/2024"))
-    logging.info(">>> check 2_lab")
-    pwf_check.main(Path(f"{root}/2_lab"))
-    logging.info(">>> check 3_album")
-    pwf_check.main(Path(f"{root}/3_album/2024"))
-    logging.info(">>> check 4_print")
-    pwf_check.main(Path(f"{root}/4_print/2024"))
+@pytest.mark.parametrize("state_dir", common.state_dirs.values())
+def test_normal(initial_paths, state_dir):
+    logging.info(f">>> check {state_dir}")
+    subdir = "2024/" if state_dir != "0_new" else ""
+    pwf_check.main(Path(f"{root}/{state_dir}/{subdir}"))
 
 
 def test_cs(initial_paths):

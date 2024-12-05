@@ -22,7 +22,7 @@
 
 from enum import Enum
 from pathlib import Path
-import hashlib
+from textwrap import dedent
 import logging
 import re
 import os
@@ -82,25 +82,21 @@ valid_file_locations: dict[str, str] = {
     ".mp3": "audio"}
 
 
-fzf_info_text: str =\
+info_text: str = dedent(
     """
-FZF PATH EXPANSION
-    Any path can be specified either by by normal means of bash (e.g.
-    with tab completion) or by using the FZF tool. Type **<tab> to bring
-    the FZF tool to front where you can select the desired path much
-    faster (see man fzf for more details). Paths are automatically bound
-    to the pwf folder structure, so this script can be used from
-    anywhere with consistent behavior.
-    """
+    LOGLEVEL
+        WARNING print warings and errors only (be quiet by default)
+        INFO    default print level
+        DEBUG   print additional info and give full exception trace log
 
-
-loglevel_info_text: str =\
-    """
-LOGLEVEL
-    WARNING print warings and errors only (be quiet by default)
-    INFO    default print level
-    DEBUG   print additional info and give full exception trace log
-    """
+    FZF PATH EXPANSION
+        Any path can be specified either by by normal means of bash (e.g.  with
+        tab completion) or by using the FZF tool. Type **<tab> to bring the FZF
+        tool to front where you can select the desired path much faster (see
+        man fzf for more details). Paths are automatically bound to the pwf
+        folder structure, so this script can be used from anywhere with
+        consistent behavior.
+    """)
 
 
 class State(Enum):
@@ -216,14 +212,3 @@ def pwf_path(path: Path) -> Path:
     Memoric: convert a path to a pwf-specific path (pwf_path)
     """
     return path.relative_to(pwf_root_path)
-
-
-def compute_md5sum(path: Path, is_partial: bool = False,
-                   is_binary: bool = True) -> str:
-    # if is_partial=True, read only first 8k data (which should be fine for
-    # pictures).
-    # TODO: read chunked for big files (memory issue)
-    with open(path, "rb" if is_binary else "r") as f:
-        data = f.read(8000) if is_partial else f.read()
-        md5sum = hashlib.md5(data).hexdigest()
-    return md5sum

@@ -22,9 +22,10 @@
 
 
 from bin import common
-from bin.common import compute_md5sum, pwf_path
+from bin import pwf_protect
 from collections import defaultdict
 from pathlib import Path
+from textwrap import dedent
 import argparse
 import copy
 import logging
@@ -35,25 +36,28 @@ import stat
 logger = logging.getLogger(__name__)
 
 
-info_text =\
+info_text: str = dedent(
     """
-Performs various checks against the given path. Checks can be disabled
-individually (see IGNORELIST). The inverse logic is possible as well, by
-enabling just what needs to be checked (see ONLYLIST).
+    Performs various checks against the given path. Checks can be disabled
+    individually (see IGNORELIST). The inverse logic is possible as well, by
+    enabling just what needs to be checked (see ONLYLIST).
 
-Checking the path ensures that files and directory structure are
-compliant to the assumptions made by the PWF scripts. It is particularly
-important to keep the 1_original/ folder clean from violations.
+    Checking the path ensures that files and directory structure are compliant
+    to the assumptions made by the PWF scripts. It is particularly important to
+    keep the 1_original/ folder clean from violations.
 
-IGNORELIST/ONLYLIST
-    cs    MD5 checksums
-    dup   duplicates
-    miss  missing files (compared to md5 checksum file)
-    name  name violations
-    path  path structure
-    prot  protection violations (for 1_original/)
-    raw   RAW derivatives (with same name pattern)
-    """ + common.loglevel_info_text + common.fzf_info_text
+    Checking of the MD5 checksums (and missing files) is only done against
+    1_original/ folders because only those are protected.
+
+    IGNORELIST/ONLYLIST
+        cs    MD5 checksums (includes miss automatically)
+        dup   duplicates
+        miss  missing files (compared to md5 checksum file)
+        name  name violations
+        path  path structure
+        prot  protection violations (for 1_original/)
+        raw   RAW derivatives (with same name pattern)
+    """) + common.info_text
 
 
 things_to_check = {"cs", "dup", "miss", "name", "path", "prot", "raw"}
@@ -72,7 +76,7 @@ def _check_names(path: Path):
     for p in [path] + list(path.glob("**/*")):
         logger.debug(f"name: {p.name}")
         if not re.match(regex, p.name):
-            logger.info(f"Illegal: '{pwf_path(p)}'")
+            logger.info(f"Illegal: '{common.pwf_path(p)}'")
             found_any = True
 
     if found_any:
@@ -102,7 +106,7 @@ def _fix_names(path: Path, is_nono: bool):
         for r in common.name_replacements:
             newname = newname.replace(r[0], r[1])
 
-        logger.info(f"rename: '{pwf_path(p)}' -> '{newname}'")
+        logger.info(f"rename: '{common.pwf_path(p)}' -> '{newname}'")
 
         if not is_nono:
             new_p = p.replace(p.parent / newname)
@@ -134,7 +138,7 @@ def _check_duplicates(path: Path):
 
         for p in paths:
             # optimized: is_partial=True ready only first 8k data!
-            by_md5[compute_md5sum(p, is_partial=True)].append(p)
+            by_md5[pwf_protect.compute_md5sum(p, is_partial=True)].append(p)
 
     logger.debug(f"{by_md5}")
 
@@ -149,7 +153,7 @@ def _check_duplicates(path: Path):
         logger.info("Found identical files:")
 
         for p in paths:
-            logger.info(f"    {pwf_path(p)}")
+            logger.info(f"    {common.pwf_path(p)}")
 
     if found_any:
         raise AssertionError("Found duplicate files!")
@@ -170,7 +174,8 @@ def _check_protection(path: Path):
         is_locked = ((int(ogo_mode, 16) & 0x222) == 0)
 
         if not is_locked:
-            logger.info(f"Not protected: {stat.filemode(mode)} {pwf_path(p)}")
+            logger.info(
+                f"Not protected: {stat.filemode(mode)} {common.pwf_path(p)}")
             found_any = True
 
     if found_any:
@@ -196,7 +201,7 @@ def _check_raw_derivatives(path: Path):
             if len(files_with_same_stem) > 1:
                 logger.info("Files with same name:")
                 for p in sorted(files_with_same_stem):
-                    logger.info(f"    {pwf_path(p)}")
+                    logger.info(f"    {common.pwf_path(p)}")
                 found_any = True
 
     if found_any:
@@ -219,7 +224,7 @@ def _check_paths(path: Path):
         suffix = p.suffix
         if suffix in common.valid_file_locations.keys():
             if p.parent.name != common.valid_file_locations[suffix]:
-                logger.info(f"File in wrong location: {pwf_path(p)}")
+                logger.info(f"File in wrong location: {common.pwf_path(p)}")
                 found_any = True
         else:
             ignored.add(suffix)
@@ -231,61 +236,15 @@ def _check_paths(path: Path):
         raise AssertionError("Found files in wrong locations!")
 
 
-def _read_md5sums_file(path: Path):
-    md5sums_file = path.parent / f"{path.name}.md5"
-    md5sums = dict()
-
-    with open(md5sums_file, "r") as f:
-        for line in f.readlines():
-            md5sum, path_str = line.strip().split(" ", 1)
-
-            is_binary = path_str.startswith("*")
-            file_path = path.parent / (path_str[1:] if is_binary else path_str)
-            md5sums[md5sum] = (file_path, is_binary)
-
-    return md5sums
-
-
 def _check_checksums(path: Path):
     logger.info("check checksums...")
 
-    md5sums = _read_md5sums_file(path)
-    found_any = False
-
-    for md5sum_exp, info in md5sums.items():
-        file_path = info[0]
-        is_binary = info[1]
-
-        try:
-            md5sum = common.compute_md5sum(file_path, is_binary=is_binary)
-        except FileNotFoundError:
-            logger.error(f"File missing: {pwf_path(file_path)}")
-            found_any = True
-            continue
-
-        if md5sum != md5sum_exp:
-            logger.error(f"MD5 sum error: {md5sum_exp} {pwf_path(file_path)}")
-            found_any = True
-
-    if found_any:
-        raise AssertionError("Found missing files or files with wrong MD5 sum")
+    pwf_protect.check_checksums(path)
 
 
 def _check_missing_files(path: Path):
-    logger.info("check missing files...")
 
-    md5sums = _read_md5sums_file(path)
-    found_any = False
-
-    for md5sum_exp, info in md5sums.items():
-        file_path = info[0]
-
-        if not file_path.exists():
-            logger.error(f"File missing: {pwf_path(file_path)}")
-            found_any = True
-
-    if found_any:
-        raise AssertionError("Found missing files")
+    pwf_protect.check_missing_files(path)
 
 
 def _get_checklist(path: Path, ignorelist: set | None = None,
@@ -300,6 +259,7 @@ def _get_checklist(path: Path, ignorelist: set | None = None,
         onlylist = set()
 
     path_info = common.parse_path(path)
+
     if path_info.state == common.State.NEW:
         if "dup" in ignorelist:
             raise ValueError(
@@ -309,12 +269,13 @@ def _get_checklist(path: Path, ignorelist: set | None = None,
             raise ValueError(
                 "Ignoring path violations is not allowed in 0_new!")
 
-    if path_info.state == common.State.NEW:
         ignorelist.update({"cs", "miss", "prot"})
+
     elif path_info.state == common.State.LAB:
         ignorelist.update({"cs", "miss", "prot", "path", "raw"})
+
     elif path_info.state != common.State.ORIGINAL:
-        ignorelist.update({"cs", "prot", "miss"})
+        ignorelist.update({"cs", "miss", "prot"})
 
     checklist = copy.copy(things_to_check) if len(onlylist) == 0 else onlylist
     checklist -= ignorelist
@@ -322,7 +283,7 @@ def _get_checklist(path: Path, ignorelist: set | None = None,
     if "name" not in checklist:
         logger.warning("Ignoring name violations is strongly discouraged!")
 
-    if checklist == set():
+    if len(checklist) == 0:
         raise ValueError("Everything ignored, nothing to check!")
 
     logger.info(f"Things to check: {checklist}")

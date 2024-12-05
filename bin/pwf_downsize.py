@@ -24,6 +24,7 @@
 from bin import common
 from pathlib import Path
 from PIL import Image
+from textwrap import dedent
 import argparse
 import copy
 import logging
@@ -32,23 +33,23 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-info_text: str =\
+info_text: str = dedent(
     """
-TAGS
-    UHD   3840x2160
-    QHD   2560x1440
-    FHD   1920x1080
-    HD    1280x720
+    TAGS
+        UHD   3840x2160
+        QHD   2560x1440
+        FHD   1920x1080
+        HD    1280x720
 
-Make images or videos smaller in size to save space. Useful for web
-presentation.
+    Make images or videos smaller in size to save space. Useful for web
+    presentation.
 
-Files are down-scaled to fit into the bounding box. The box is always
-aligned with the image orientation, so vertical images turned by 90° are
-of the same size as horizontal images (from same camera with same
-settings). This has no benefit on horizontal screen presentation - but
-when printed, all images are of same resolution.
-    """ + common.fzf_info_text
+    Files are down-scaled to fit into the bounding box. The box is always
+    aligned with the image orientation, so vertical images turned by 90° are of
+    the same size as horizontal images (from same camera with same settings).
+    This has no benefit on horizontal screen presentation - but when printed,
+    all images are of same resolution.
+    """) + common.info_text
 
 
 class Size(object):

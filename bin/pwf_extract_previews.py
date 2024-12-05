@@ -23,8 +23,9 @@
 
 from PIL import ImageFile
 from bin import common
-from pathlib import Path
 from bin.pwf_downsize import tag_sizes, scale_image
+from pathlib import Path
+from textwrap import dedent
 import argparse
 import logging
 import rawpy  # type: ignore
@@ -36,26 +37,26 @@ logger = logging.getLogger(__name__)
 preview_size_tag: str = "FHD"  # how big preview files shall be
 
 
-info_text: str =\
+info_text: str = dedent(
     """
-Creates small preview images out of RAW and JPG files. For RAW files,
-the preview images are extracted from the Exif info. For JPG files, a
-smaller version of the original is created for faster walk-through.
+    Creates small preview images out of RAW and JPG files. For RAW files, the
+    preview images are extracted from the Exif info. For JPG files, a smaller
+    version of the original is created for faster walk-through.
 
-The argument src_path can be a file or a folder. A directory dst_path
-can be specified where to place the preview images. If no destination is
-provided, the files will be placed next to the source files.
+    The argument src_path can be a file or a folder. A directory dst_path can
+    be specified where to place the preview images. If no destination is
+    provided, the files will be placed next to the source files.
 
-The filter option -f can be used to only create preview files if the
-source file name is listed in the given filter file. This is used to
-restore cleaned-up lab folders.
+    The filter option -f can be used to only create preview files if the source
+    file name is listed in the given filter file. This is used to restore
+    cleaned-up lab folders.
 
-The dst_path can be set to the tag "@lab" to cause special behavior: In
-this case, src_path must point to an event folder in the 1_original/
-tree. A preview of all JPG and RAW photos will be put into the
-corresponding event folder in the 2_lab/ tree, into a subfolder
-1_preview/ (this automatically implies --recursive).
-    """ + common.loglevel_info_text + common.fzf_info_text
+    The dst_path can be set to the tag "@lab" to cause special behavior: In
+    this case, src_path must point to an event folder in the 1_original/ tree.
+    A preview of all JPG and RAW photos will be put into the corresponding
+    event folder in the 2_lab/ tree, into a subfolder 1_preview/ (this
+    automatically implies --recursive).
+    """) + common.info_text
 
 
 def extract_raw_preview(src_path: Path, dst_path: Path) -> None:

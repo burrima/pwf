@@ -23,6 +23,7 @@
 
 from bin import common
 from pathlib import Path
+from textwrap import dedent
 import argparse
 import logging
 
@@ -30,10 +31,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-info_text: str =\
+info_text: str = dedent(
     """
-Provides statistics about the files contained in the given PATH.
-    """ + common.fzf_info_text
+    Provides statistics about the files contained in the given PATH.
+    """) + common.info_text
 
 
 def _get_stats(path: Path, extensions: set) -> tuple[int, int]:

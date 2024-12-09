@@ -36,23 +36,24 @@ logger = logging.getLogger(__name__)
 
 info_text: str = dedent(
     """
-    IGNORELIST
-        See documentation of pwf_check.py -h
-
-    Import (i.e. move a new folder structure from 0_new into the
+    Import (i.e. move) a new event folder structure from 0_new into the
     1_original/YEAR/ archive. The folder structure must contain files sorted to
     raw/, jpg/, video/ and audio/ otherwise the script will exit with an error.
 
     If --keep-unprotected is specified, the destination path (year) will kept
-    unprotected after the import. The user is then responsible by them own to
+    unprotected after the import. Users are then responsible by them own to
     call pwf_protect.py against the destination folder.
 
     This script automates the following sequence:
 
-      * pwf_check.py -i IGNORELLIST 0_new/EVENT/
+      * pwf_check.py 0_new/EVENT/
       * pwf_protect.py -u 1_original/YEAR/
       * mv 0_new/EVENT 1_original/YEAR/EVENT
       * pwf_protect.py -f 1_original/YEAR/
+
+    IGNORELIST
+        See documentation of pwf_check.py -h
+        Currently, only allowed ignore-item is "raw" (to store raw+jpg)
     """) + common.info_text
 
 
@@ -67,9 +68,10 @@ def main(path: Path, ignorelist: set | None = None, year: int | None = None,
     logger.debug(f"{path=}, {ignorelist=}, {year=}, " +
                  "{keep_unprotected=}, {is_nono=}")
 
-    if path_info.state != common.State.NEW or not path_info.is_event_dir:
-        raise ValueError("Invalid path! pwf_import can only run against " +
-                         "event dirs in 0_new!")
+    if path_info.state != common.State.NEW or not path_info.is_event_dir\
+       or path_info.event is None:
+        raise ValueError(
+            "Invalid path! Can only run against event dirs in 0_new!")
 
     if path_info.year is None:
         if year is None:
@@ -82,31 +84,27 @@ def main(path: Path, ignorelist: set | None = None, year: int | None = None,
 
     if ignorelist is not None:
         if ignorelist != {"raw", }:
-            raise ValueError("Only allowed ignorelist item is 'raw'!")
+            raise ValueError("Only allowed IGNORELIST item is 'raw'!")
         logger.warning(
             "Using --ignorelist is dangerous and strongly discouraged!")
-        # logger.warning("Continue? [yes,no]")
-        # val = input()
-        # if val != "yes":
-        #     raise ValueError("Stopped due to missing user confirmation")
 
     pwf_check.main(path, ignorelist=ignorelist, is_nono=is_nono)
 
-    target_dir = common.pwf_root_path / "1_original" / str(path_info.year)
+    dst_path = common.pwf_root_path / "1_original" / str(path_info.year)
+    dst_path = dst_path / path_info.event
+
+    logger.info(
+        f"  Move: {common.pwf_path(path)} -> {common.pwf_path(dst_path)}")
 
     if is_nono:
-        logger.info("Dry-run, would do the following:")
-        logger.info(
-            f"  Move: {path} -> {target_dir}/{path_info.event}")
-        return
+        logger.info("Dry-run, doing nothing...")
+    else:
+        pwf_protect.unprotect(dst_path)
 
-    pwf_protect.unprotect(target_dir)
+        shutil.move(path, dst_path)
 
-    logger.info(f"  Move: {path} -> {target_dir}/")
-    shutil.move(path, target_dir)
-
-    if not keep_unprotected:
-        pwf_protect.protect(target_dir, is_forced=True)
+        if not keep_unprotected:
+            pwf_protect.protect(dst_path, is_forced=True)
 
     logger.info("pwf_import: OK")
 

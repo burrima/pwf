@@ -60,7 +60,7 @@ video_file_extensions: set[str] = {"MOV", "mp4", "MP4", "mpeg", "mov", "MOV"}
 audio_file_extensions: set[str] = {"wav", "WAV", "mp3"}
 
 
-type_dirs: set[str] = {"raw", "jpg", "audio", "video"}
+type_dirs: set[str] = {"raw", "jpg", "audio", "video"}  # TODO: add other/
 
 
 valid_file_locations: dict[str, str] = {

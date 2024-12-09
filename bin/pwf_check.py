@@ -62,6 +62,8 @@ info_text: str = dedent(
 
 things_to_check = {"cs", "dup", "miss", "name", "path", "prot", "raw"}
 
+# TODO: add check for no-links (no links allowed in NEW and ORIGINAL)
+
 
 def _check_names(path: Path):
     """
@@ -120,7 +122,7 @@ def _check_duplicates(path: Path):
     """
     logger.info("check duplicates...")
 
-    # find potential duplicates by size (much faster!):
+    # Step 1: find potential duplicates by size (much faster!)
     by_size = defaultdict(list)
 
     for p in path.glob("**/*"):
@@ -129,7 +131,7 @@ def _check_duplicates(path: Path):
 
     logger.debug(f"{by_size=}")
 
-    # from potential duplicates, compute md5 sum:
+    # Step 2: from potential duplicates, compute MD5 sum
     by_md5 = defaultdict(list)
 
     for paths in by_size.values():
@@ -137,12 +139,12 @@ def _check_duplicates(path: Path):
             continue
 
         for p in paths:
-            # optimized: is_partial=True ready only first 8k data!
+            # optimized: is_partial=True = read only first 8k data!
             by_md5[pwf_protect.compute_md5sum(p, is_partial=True)].append(p)
 
-    logger.debug(f"{by_md5}")
+    logger.debug(f"{by_md5=}")
 
-    # identify and report duplicate files:
+    # Step 3: identify and report duplicate files
     found_any = False
 
     for paths in by_md5.values():
@@ -152,7 +154,7 @@ def _check_duplicates(path: Path):
         found_any = True
         logger.info("Found identical files:")
 
-        for p in paths:
+        for p in sorted(paths):
             logger.info(f"    {common.pwf_path(p)}")
 
     if found_any:
@@ -218,7 +220,7 @@ def _check_paths(path: Path):
     ignored: set[str] = set()
 
     for p in path.glob("**/*"):
-        if not p.is_file():  # ignore dirs (TODO: what is with links?)
+        if p.is_dir():  # ignore dirs (handle links as files)
             continue
 
         suffix = p.suffix
@@ -237,7 +239,6 @@ def _check_paths(path: Path):
 
 
 def _check_checksums(path: Path):
-    logger.info("check checksums...")
 
     pwf_protect.check_checksums(path)
 
@@ -260,22 +261,26 @@ def _get_checklist(path: Path, ignorelist: set | None = None,
 
     path_info = common.parse_path(path)
 
-    if path_info.state == common.State.NEW:
-        if "dup" in ignorelist:
-            raise ValueError(
-                "Ignoring duplicate violations is not allowed in 0_new!")
+    match path_info.state:
+        case common.State.NEW:
+            if "dup" in ignorelist:
+                raise ValueError(
+                    "Ignoring duplicate violations is not allowed in 0_new!")
 
-        if "path" in ignorelist:
-            raise ValueError(
-                "Ignoring path violations is not allowed in 0_new!")
+            if "path" in ignorelist:
+                raise ValueError(
+                    "Ignoring path violations is not allowed in 0_new!")
 
-        ignorelist.update({"cs", "miss", "prot"})
+            ignorelist.update({"cs", "miss", "prot"})
 
-    elif path_info.state == common.State.LAB:
-        ignorelist.update({"cs", "miss", "prot", "path", "raw"})
+        case common.State.LAB:
+            ignorelist.update({"cs", "miss", "prot", "path", "raw"})
 
-    elif path_info.state != common.State.ORIGINAL:
-        ignorelist.update({"cs", "miss", "prot"})
+        case common.State.ORIGINAL:
+            pass
+
+        case _:
+            ignorelist.update({"cs", "miss", "prot"})
 
     checklist = copy.copy(things_to_check) if len(onlylist) == 0 else onlylist
     checklist -= ignorelist
@@ -329,6 +334,7 @@ def main(path: Path, ignorelist: set | None = None,
         # cs includes check for missing files!
         _check_missing_files(path)
 
+    logger.info("PASSED! Might be wise to check hard-disk S.M.A.R.T. status")
     logger.info("pwf_check: OK")
 
 

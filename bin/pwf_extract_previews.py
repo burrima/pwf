@@ -112,6 +112,9 @@ def main(src_path: Path, dst_path: Path | None = None,
 
     logger.info("pwf_extract_previews: ENTRY")
 
+    if not src_path.exists():
+        raise ValueError("SRC_PATH does not exist!")
+
     # parse and check path:
     common.parse_path(src_path)
 
@@ -167,7 +170,6 @@ def main(src_path: Path, dst_path: Path | None = None,
 
         # ignore src files which are already a preview file
         if str(file).endswith("-preview.jpg"):
-            # TODO: add unit test for this case!
             logger.info(
                 f"Ignore (preview): {file.relative_to(common.pwf_root_path)}")
             continue

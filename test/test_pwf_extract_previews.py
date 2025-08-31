@@ -185,6 +185,34 @@ def test_ignore_existing_file(initial_paths, caplog):
         assert text in caplog.text
 
 
+def test_ignore_existing_src_preview_file(initial_paths, caplog):
+    """
+    Verifies that no previews of existing previews are created.
+    """
+    test_common.create_paths((
+        (f"{root}/0_new/2024/2024-10-30_ev_1/", 0),
+        (f"{root}/0_new/2024/2024-10-30_ev_1/jpg/", 0),
+        (f"{root}/0_new/2024/2024-10-30_ev_1/jpg/DSC_100-preview.jpg", 0),
+    ))
+    src_path = Path(f"{root}/0_new/2024/2024-10-30_ev_1/jpg/")
+    pwf_extract_previews.main(src_path, None, is_nono=True)
+
+    file = "0_new/2024/2024-10-30_ev_1/jpg/DSC_100-preview.jpg"
+    text = f"Ignore (preview): {file}"
+    assert text in caplog.text
+
+
+def test_non_existing_src_path(initial_paths, caplog):
+    """
+    Verifies that an error is reported when the src_path does not exist.
+    """
+    src_path = Path(f"{root}/0_new/2024/2024-10-30_ev_1/asdf/")
+
+    with pytest.raises(ValueError) as ex:
+        pwf_extract_previews.main(src_path, None, is_nono=True)
+    assert str(ex.value) == "SRC_PATH does not exist!"
+
+
 def test_unsupported_extension(initial_paths, caplog):
     file = f"{root}/2_lab/2024/2024-10-30_ev_1/hello.xyz"
     test_common.create_paths((

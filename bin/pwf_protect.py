@@ -23,7 +23,6 @@
 
 from bin import common
 from bin.common import pwf_path
-# from bin import pwf_check
 from pathlib import Path
 from textwrap import dedent
 import argparse
@@ -37,13 +36,21 @@ logger = logging.getLogger(__name__)
 info_text: str = dedent(
     """
     Protects or unprotects a file or folder provided by PATH. Normally only
-    used against 1_original/YEAR, but can be used for any PATH. Calls
-    pwf_check.py before protection is applied (unless -f is set).
+    used against 1_original/YEAR, but can be used for any PATH.
 
     By default, only folders are unprotected, but files remain protected. This
     allows to add or delete files, but modification is still not allowed. With
     the flag -a all files can be unlocked too (use with care!).
+
+    This script shall normally not be invoked directly by users of PWF. The
+    normal workflow should not require manual unlocking/re-locking of any
+    folder. Use with great care! And call pwf-check before locking.
     """) + common.info_text
+
+
+# TODO: extend this script to allow adding of new files to a protected folder!
+# This requires to also check if files are missing, compared to the existing
+# md5 file or if existing files have been changed.
 
 
 def unprotect(path: Path, is_all: bool = False):
@@ -59,11 +66,8 @@ def unprotect(path: Path, is_all: bool = False):
         md5_file.lchmod(0o664)
 
 
-def protect(path: Path, is_forced: bool = False):
+def protect(path: Path):
     md5_file = path.parent / (path.name + ".md5")
-
-    # if not is_forced:
-    #     pwf_check.main(path, ignorelist={"cs", "miss", "prot"})
 
     for p in sorted([path] + list(path.glob("**/*"))):
         if p.is_dir():
@@ -75,7 +79,8 @@ def protect(path: Path, is_forced: bool = False):
             p.lchmod(0o444)
 
     # protect md5 file:
-    md5_file.chmod(0o444)
+    if md5_file.exists():  # unlikely, but possible that path is empty
+        md5_file.chmod(0o444)
 
 
 def compute_md5sum(path: Path, is_partial: bool = False,
@@ -146,15 +151,14 @@ def check_missing_files(path: Path):
         raise AssertionError("Found missing files")
 
 
-def main(path: Path, do_unprotect: bool = False, is_forced: bool = False,
-         is_all: bool = False):
+def main(path: Path, do_unprotect: bool = False, is_all: bool = False):
 
     logger.info("pwf_protect: ENTRY")
 
     if do_unprotect:
         unprotect(path, is_all)
     else:
-        protect(path, is_forced)
+        protect(path)
 
     logger.info("pwf_protect: OK")
 
@@ -167,9 +171,6 @@ if __name__ == "__main__":
 
     parser.add_argument("-a", "--all",
                         help="all content of a directory (also files)",
-                        action="store_true")
-    parser.add_argument("-f", "--forced",
-                        help="don't perform any checks",
                         action="store_true")
     parser.add_argument("-u", "--unprotect",
                         help="unprotect given path (default is to protect)",
@@ -185,8 +186,7 @@ if __name__ == "__main__":
     logger.debug(f"{args=}")
 
     try:
-        main(Path(args.path), do_unprotect=args.unprotect,
-             is_forced=args.forced, is_all=args.all)
+        main(Path(args.path), do_unprotect=args.unprotect, is_all=args.all)
     except Exception as ex:
         if args.loglevel.upper() == "DEBUG":
             raise

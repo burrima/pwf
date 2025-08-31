@@ -20,6 +20,18 @@
 # SOFTWARE.
 #
 
+"""
+This pytest module verifies the pwf_extract_previews.py script.
+
+Tests are mainly verifying the main() method. Private methods are only
+implicitly tested.
+
+TODO: add tests for _tag_to_path() since important decisions are taken there!
+
+All calls to main() include "is_nono=True" because there is no real image data
+available for unit tests.  TODO: overcome this limitation.
+"""
+
 import pytest
 from bin import pwf_init
 from bin import pwf_extract_previews

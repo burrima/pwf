@@ -86,27 +86,22 @@ def _tag_to_path(src_path: Path, tag: str) -> Path:
     is not met, a ValueError is raised.
     """
 
-    src = str(src_path)
     src_info = common.parse_path(src_path)
 
-    if tag not in ["@lab"]:  # very restrictive!
-        raise ValueError("Invalid tag provided!")
+    if tag != "@lab":  # very restrictive!
+        raise ValueError("Only tag '@lab' allowed!")
 
     if src_info.event is None:
         raise ValueError("Extract to tag only allowed from within event dir!")
 
-    if tag == "@lab" and not src_info.is_event_dir:
+    if not src_info.is_event_dir:
         raise ValueError("src_path must be an event dir!")
 
     if src_info.state is None:
         raise ValueError("Invalid src_path provided!")
 
-    dst_path = Path(src.replace(common.state_dirs[src_info.state],
-                    common.tag_dirs[tag]))
-
-    if tag == "@lab":
-        dst_path = common.pwf_root_path / "2_lab" \
-            / str(src_info.year) / src_info.event / "1_preview"
+    dst_path = common.pwf_root_path / "2_lab"
+    dst_path = dst_path / str(src_info.year) / src_info.event / "1_preview"
 
     return dst_path
 
@@ -120,29 +115,33 @@ def main(src_path: Path, dst_path: Path | None = None,
     # parse and check path:
     common.parse_path(src_path)
 
-    if dst_path == "@lab":
-        logger.info("Tag '@lab' automatically implies --recursive")
-        is_recursive = True
-
     if dst_path is None:
         # place preview file into src_path directory
         dst_path = src_path if src_path.is_dir() else src_path.parent
+    else:
+        if str(dst_path).startswith("@"):  # a tag is provided as dst_path
+            dst_path = _tag_to_path(src_path, str(dst_path))
 
-    if str(dst_path) != "@lab" and not dst_path.is_dir():
-        raise ValueError("DST_PATH must be directory or '@lab'!")
+            logger.info("Tag '@lab' automatically implies --recursive")
+            is_recursive = True
 
-    if str(dst_path) == "@lab":
-        dst_path = _tag_to_path(src_path, str(dst_path))
-        if is_nono:
-            logger.info(f"NONO: Would create (if not existing): {dst_path}")
-        else:
-            dst_path.mkdir(parents=True, exist_ok=True)
+            if is_nono:
+                logger.info(
+                    f"NONO: Would create (if not existing): {dst_path}")
+            else:
+                dst_path.mkdir(parents=True, exist_ok=True)
 
+        else:  # real dst_path provided, not a tag...
+            if not dst_path.is_dir():
+                raise ValueError("DST_PATH must be directory or '@lab'!")
+
+    # reaad filter file if provided
     filt = None
     if filter_file is not None:
         with open(filter_file, "r") as f:
             filt = f.read()
 
+    # prepare a list of files
     files = []
     if src_path.is_dir():
         glob = "**/*.*" if is_recursive else "*.*"
@@ -150,34 +149,40 @@ def main(src_path: Path, dst_path: Path | None = None,
     else:
         files = [src_path]
 
+    # create preview of each file
     for file in files:
 
         if filt is not None and file.name in filt:
             logger.info(f"Ignore (no filter match): {file}")
             continue
 
-        dst_file = dst_path / f"{file.name}-preview.jpg"
+        # define name of preview file
+        preview_file = dst_path / f"{file.name}-preview.jpg"
 
-        if dst_file.exists():
+        # ignore exiting preview files
+        if preview_file.exists():
             logger.info(
                 f"Ignore (exists): {file.relative_to(common.pwf_root_path)}")
             continue
 
+        # ignore src files which are already a preview file
         if str(file).endswith("-preview.jpg"):
+            # TODO: add unit test for this case!
             logger.info(
                 f"Ignore (preview): {file.relative_to(common.pwf_root_path)}")
             continue
 
         prefix = "NONO: " if is_nono else ""
         logger.info(f"{prefix}{file.relative_to(common.pwf_root_path)} -> " +
-                    f"{dst_file.relative_to(common.pwf_root_path)}")
+                    f"{preview_file.relative_to(common.pwf_root_path)}")
 
+        # now extract preview
         if file.suffix[1:] in common.jpg_file_extensions:
             if not is_nono:
-                extract_jpg_preview(file, dst_file)
+                extract_jpg_preview(file, preview_file)
         elif file.suffix[1:] in common.raw_file_extensions:
             if not is_nono:
-                extract_raw_preview(file, dst_file)
+                extract_raw_preview(file, preview_file)
         else:
             logger.info(f"Ignored file due to unsupported extension: {file}")
 

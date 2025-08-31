@@ -56,6 +56,11 @@ info_text: str = dedent(
     A preview of all JPG and RAW photos will be put into the corresponding
     event folder in the 2_lab/ tree, into a subfolder 1_preview/ (this
     automatically implies --recursive).
+
+    Preview files can easily be removed with the bash command 'rm'. Use FZF to
+    select the path: 'rm -r **<tab>'. Then, add '*-preview.jpg' and hit Enter.
+    Maybe one day either this script or pwf_cleanup.py will support removal of
+    no longer needed preview files.
     """) + common.info_text
 
 

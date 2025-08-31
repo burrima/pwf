@@ -21,7 +21,15 @@
 #
 
 from pathlib import Path
+from textwrap import dedent
+import argparse
 import os
+
+
+info_text: str = dedent(
+    """
+    Creates an empty initial folder structure in the current working directory.
+    """)
 
 
 paths = (
@@ -69,4 +77,9 @@ def create_initial_paths(root):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=info_text)
+    parser.parse_args()
+
     create_initial_paths("pictures")

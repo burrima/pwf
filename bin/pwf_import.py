@@ -88,6 +88,7 @@ def main(path: Path, ignorelist: set | None = None, year: int | None = None,
         logger.warning(
             "Using --ignorelist is dangerous and strongly discouraged!")
 
+    # perform different file and path validity checks
     pwf_check.main(path, ignorelist=ignorelist, is_nono=is_nono)
 
     dst_year_path = common.pwf_root_path / "1_original" / str(path_info.year)
@@ -105,6 +106,8 @@ def main(path: Path, ignorelist: set | None = None, year: int | None = None,
 
         if not keep_unprotected:
             pwf_protect.protect(dst_year_path, is_forced=True)
+        else:
+            logger.info("Keeping destination archive folder unprotected!")
 
     logger.info("pwf_import: OK")
 

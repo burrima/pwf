@@ -20,6 +20,11 @@
 # SOFTWARE.
 #
 
+"""
+This pytest module verifies the pwf_import.py script.
+
+TODO: implement tests! There are no tests implemented yet!
+"""
 
 import pytest
 from bin import pwf_init

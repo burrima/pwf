@@ -90,8 +90,8 @@ def main(path: Path, ignorelist: set | None = None, year: int | None = None,
 
     pwf_check.main(path, ignorelist=ignorelist, is_nono=is_nono)
 
-    dst_path = common.pwf_root_path / "1_original" / str(path_info.year)
-    dst_path = dst_path / path_info.event
+    dst_year_path = common.pwf_root_path / "1_original" / str(path_info.year)
+    dst_path = dst_year_path / path_info.event
 
     logger.info(
         f"  Move: {common.pwf_path(path)} -> {common.pwf_path(dst_path)}")
@@ -99,12 +99,12 @@ def main(path: Path, ignorelist: set | None = None, year: int | None = None,
     if is_nono:
         logger.info("Dry-run, doing nothing...")
     else:
-        pwf_protect.unprotect(dst_path)
+        pwf_protect.unprotect(dst_year_path)
 
         shutil.move(path, dst_path)
 
         if not keep_unprotected:
-            pwf_protect.protect(dst_path, is_forced=True)
+            pwf_protect.protect(dst_year_path, is_forced=True)
 
     logger.info("pwf_import: OK")
 

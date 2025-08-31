@@ -74,6 +74,9 @@ def protect(path: Path, is_forced: bool = False):
                 f.write(f"{md5sum} *{p.relative_to(path.parent)}\n")
             p.lchmod(0o444)
 
+    # protect md5 file:
+    md5_file.chmod(0o444)
+
 
 def compute_md5sum(path: Path, is_partial: bool = False,
                    is_binary: bool = True) -> str:

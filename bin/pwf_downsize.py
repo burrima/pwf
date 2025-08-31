@@ -112,9 +112,9 @@ def scale_image(src: Path | Image.Image, dst_path: Path,
 
     im: Image.Image
 
-    if type(src) is Path:
+    if isinstance(src, Path):
         im = Image.open(src)
-    elif type(src) is Image.Image:
+    elif isinstance(src, Image.Image):
         im = src
     else:
         raise ValueError("src has wrong type!")

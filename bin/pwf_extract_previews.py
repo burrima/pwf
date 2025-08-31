@@ -163,6 +163,11 @@ def main(src_path: Path, dst_path: Path | None = None,
                 f"Ignore (exists): {file.relative_to(common.pwf_root_path)}")
             continue
 
+        if str(file).endswith("-preview.jpg"):
+            logger.info(
+                f"Ignore (preview): {file.relative_to(common.pwf_root_path)}")
+            continue
+
         prefix = "NONO: " if is_nono else ""
         logger.info(f"{prefix}{file.relative_to(common.pwf_root_path)} -> " +
                     f"{dst_file.relative_to(common.pwf_root_path)}")

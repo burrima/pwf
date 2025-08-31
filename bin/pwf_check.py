@@ -87,7 +87,12 @@ def _check_names(path: Path):
 
 def _fix_names(path: Path, is_nono: bool):
     """
-    Tries to fix illegal names as per common.name_replacements.
+    Tries to fix illegal names as defined in common.name_replacements.
+
+    This does not mean that names are compliant afterwards. This function just
+    fixes the most obvious things.
+
+    Returns the updated path (or the original path if not changed)
     """
     logger.info("fix names...")
 
@@ -99,10 +104,13 @@ def _fix_names(path: Path, is_nono: bool):
     files_to_fix = []
     paths = list(path.glob("**/*")) + [path]  # include path itself
 
+    # collect files to be fixed, from deepest depth to top dir:
     for p in sorted(paths, reverse=True):  # from subdirs to top...
         if not re.match(regex, p.name):
             files_to_fix.append(p)
 
+    # fix names as defined in common.name_replacements:
+    new_path = path
     for p in files_to_fix:
         newname = p.name
         for r in common.name_replacements:
@@ -110,10 +118,15 @@ def _fix_names(path: Path, is_nono: bool):
 
         logger.info(f"rename: '{common.pwf_path(p)}' -> '{newname}'")
 
-        if not is_nono:
-            new_p = p.replace(p.parent / newname)
-            if p == path:
-                path = new_p
+        if is_nono:  # don't perform below steps
+            continue
+
+        if p == path:  # provided path argument itself (root path)
+            new_path = p.replace(p.parent / newname)
+        else:
+            p.replace(p.parent / newname)
+
+    return new_path  # updated source path
 
 
 def _check_duplicates(path: Path):
@@ -251,7 +264,7 @@ def _check_missing_files(path: Path):
 def _get_checklist(path: Path, ignorelist: set | None = None,
                    onlylist: set | None = None):
     """
-    Given ignorelist and pathlist, determine what to check
+    Given path, ignorelist and pathlist, determine what to check
     """
 
     if ignorelist is None:
@@ -311,7 +324,7 @@ def main(path: Path, ignorelist: set | None = None,
 
     if "name" in checklist:
         if do_fix:
-            _fix_names(path, is_nono)
+            path = _fix_names(path, is_nono)
             if is_nono:
                 return
         _check_names(path)

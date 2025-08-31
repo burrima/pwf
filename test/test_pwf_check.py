@@ -20,6 +20,14 @@
 # SOFTWARE.
 #
 
+"""
+This pytest module verifies the pwf_check.py script.
+
+Tests are mainly verifying the main() method. There are some extra tests to
+cover the method _get_checklist() which is crucial for proper operation. Other
+private methods are only implicitly tested.
+"""
+
 import pytest
 from bin import pwf_init
 from bin import pwf_check

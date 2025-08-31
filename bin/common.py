@@ -42,27 +42,34 @@ if re.match(rf"^[{legal_characters}]+$", pwf_root):
 pwf_root_path = Path(pwf_root)
 
 
+# Define which characters shall be replaced by pwf_check.py when fixing names:
 name_replacements: set[tuple[str, str]] = {
     (" ", "_"),
     ("&", "und"),
     ("-_", "")}
 
 
+# Define which file endings (extensions) shall be recognized as RAW files:
 raw_file_extensions: set[str] = {"NEF", "NRW", "CR2"}
 
 
+# Define which file endings (extensions) shall be recognized as JPG files:
 jpg_file_extensions: set[str] = {"jpg", "JPG", "jpeg", "JPEG"}
 
 
+# Define which file endings (extensions) shall be recognized as video files:
 video_file_extensions: set[str] = {"MOV", "mp4", "MP4", "mpeg", "mov", "MOV"}
 
 
+# Define which file endings (extensions) shall be recognized as audio files:
 audio_file_extensions: set[str] = {"wav", "WAV", "mp3"}
 
 
-type_dirs: set[str] = {"raw", "jpg", "audio", "video"}  # TODO: add other/
+# Define which directory names are valid for the different file types:
+type_dirs: set[str] = {"raw", "jpg", "audio", "video"}
 
 
+# Define which file types are allowed to be stored in which type directory:
 valid_file_locations: dict[str, str] = {
     ".NEF": "raw",
     ".NRW": "raw",
@@ -82,6 +89,7 @@ valid_file_locations: dict[str, str] = {
     ".mp3": "audio"}
 
 
+# Define general help text which is appended to each script's help output:
 info_text: str = dedent(
     """
     LOGLEVEL
@@ -99,6 +107,7 @@ info_text: str = dedent(
     """)
 
 
+# Define PWF workflow states:
 class State(Enum):
     NEW = 0
     ORIGINAL = 1
@@ -107,6 +116,7 @@ class State(Enum):
     PRINT = 4
 
 
+# Define which PWF workflow state corresponds to which folder:
 state_dirs: dict[State, str] = {
     State.NEW: "0_new",
     State.ORIGINAL: "1_original",
@@ -116,9 +126,12 @@ state_dirs: dict[State, str] = {
 }
 
 
+# Define which tags can be used as shortcuts for state folders when calling
+# scripts:
 tags: set[str] = {"@new", "@original", "@lab", "@album", "@print"}
 
 
+# Define which tag corresponds to which state folder:
 tag_dirs: dict[str, str] = {
     "@new": "0_new",
     "@original": "1_original",

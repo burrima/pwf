@@ -105,7 +105,7 @@ def main(path: Path, ignorelist: set | None = None, year: int | None = None,
         shutil.move(path, dst_path)
 
         if not keep_unprotected:
-            pwf_protect.protect(dst_year_path, is_forced=True)
+            pwf_protect.protect(dst_year_path)
         else:
             logger.info("Keeping destination archive folder unprotected!")
 

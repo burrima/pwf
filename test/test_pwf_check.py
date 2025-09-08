@@ -57,7 +57,7 @@ def initial_paths():
         (f"{root}/4_print/2024/", 0),
     ))
 
-    pwf_protect.main(Path(f"{root}/1_original/2024"), is_forced=True)
+    pwf_protect.main(Path(f"{root}/1_original/2024"))
 
     yield
 
@@ -88,7 +88,7 @@ def test_cs(initial_paths):
     with open(f"{root}/1_original/2024.md5", "a") as f:
         f.write("0123 *2024/test.txt\n")
 
-    pwf_protect.main(Path(f"{root}/1_original/2024"), is_forced=True)
+    pwf_protect.main(Path(f"{root}/1_original/2024"))
     with pytest.raises(AssertionError) as ex:
         pwf_check.main(Path(f"{root}/1_original/2024"))
     assert str(ex.value) == "Found missing files or files with wrong MD5 sum"
@@ -133,7 +133,7 @@ def test_miss(initial_paths):
     with open(f"{root}/1_original/2024.md5", "a") as f:
         f.write("0123 *2024/test.txt\n")
 
-    pwf_protect.main(Path(f"{root}/1_original/2024"), is_forced=True)
+    pwf_protect.main(Path(f"{root}/1_original/2024"))
 
     with pytest.raises(AssertionError) as ex:
         pwf_check.main(Path(f"{root}/1_original/2024"), onlylist={"miss"})

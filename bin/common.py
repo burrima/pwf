@@ -152,24 +152,45 @@ class Pwf_path_info(object):
     event: str | None = None
     file_type: str | None = None
 
+    def __repr__(self):
+        return (f"{self.state=}, {self.is_event_dir=}, {self.year=}, "
+                f"{self.event=}, {self.file_type=}")
+
 
 def parse_path(path: Path) -> Pwf_path_info:
+    """
+    Parses a path and returns a Pwf_path_info opject.
+
+    Valid paths are, for example:
+      - 0_new/2025-10-30_Event_1/jpg/IMG_1234.jpg   # standard
+      - 0_new/2025_Topic1/jpg/IMG_5678.jpg
+      - 1_original/2025/2025-10-20_Event_2/jgp/IMG_1234.jpg   # standard
+      - 1_original/2008/2008_Topic1/raw/DSC_1234.NRW
+      - 1_original/2008/Topic2/raw/DSC_1234.NRW
+      - 2_lab/2025/2025-10-20_Event/1_original_raw
+
+    They all follow the following schemes:
+      - <state>/<year>/<event>/{jpg,raw,audio,video}/<file>.<ending>
+      - 0_new/<event>/{jpg,raw,audio,video}/<file>.<ending>
+
+    The algorithm traverses the parts of the path from root to leaf and tries
+    to find the next information, given the already found out things.
+
+    Caveats:
+      * Only 1 state dir allowed in path (0_new, 1_original, ...)
+      * State dir must be followed by year dir (or by event dir in 0_new)
+      * Year dir must be followed by event dir
+      * Event dir must be followed by file_type dir, where this can have a
+        prefix ([prefix_]jpg, [prefix_]raw, ...)
+    """
     info = Pwf_path_info()
 
     parts = path.parts
     logger.debug(f"parse_path: {parts=}")
 
-    for part in parts:
+    for idx, part in enumerate(parts):
 
-        if re.match(r"\d{4}-\d{2}-\d{2}_.*", part):
-            info.event = part
-            if part == parts[-1]:
-                info.is_event_dir = True
-        elif re.match(r"\d{4}", part):
-            info.year = int(part[:4])
-        elif part.split("_")[-1] in type_dirs:
-            info.file_type = part.split("_")[-1]
-        elif info.state is None:
+        if info.state is None:
             match(part):
                 case "0_new":
                     info.state = State.NEW
@@ -183,9 +204,31 @@ def parse_path(path: Path) -> Pwf_path_info:
                     info.state = State.PRINT
                 case _:
                     info.state = None
+            continue
 
-    if info.year is None and info.event is not None:
-        info.year = int(info.event[:4])
+        if part in state_dirs.values():
+            raise ValueError("Path must not contain more than one state dir!")
+
+        # NOTE: year is optional!
+        if info.year is None and re.match(r"\d{4}", part):
+            info.year = int(part[:4])
+            if len(part) == 4:  # is year-dir, else event-dir
+                continue
+
+        if info.event is None:
+            info.event = part
+            info.is_event_dir = True
+            continue
+
+        info.is_event_dir = False
+
+        if info.file_type is None:
+            if part.split("_")[-1] in type_dirs:
+                info.file_type = part.split("_")[-1]
+            else:
+                # NOTE: this is restrictive but helps to filter many illegal
+                # situations!
+                raise ValueError("Event dir must contain file_type dir!")
 
     if info.state is None:
         raise ValueError("Cannot parse state from path!")

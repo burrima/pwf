@@ -52,21 +52,12 @@ def initial_paths():
         (f"{root}/4_print/2024/", 0),
     ))
 
-    for p in sorted(Path(f"{root}/1_original").glob("**/*"),
-                    reverse=True):
-        p.chmod(0o555) if p.is_dir() else p.lchmod(0o444)
-    for p in sorted(Path(f"{root}/3_album").glob("**/*"), reverse=True):
-        p.chmod(0o555) if p.is_dir() else p.lchmod(0o444)
-    for p in sorted(Path(f"{root}/4_print").glob("**/*"), reverse=True):
+    for p in sorted(Path(f"{root}/1_original").glob("**/*"), reverse=True):
         p.chmod(0o555) if p.is_dir() else p.lchmod(0o444)
 
     yield
 
     for p in sorted(Path(f"{root}/1_original").glob("**/*")):
-        p.chmod(0o775) if p.is_dir() else p.lchmod(0o664)
-    for p in sorted(Path(f"{root}/3_album").glob("**/*")):
-        p.chmod(0o775) if p.is_dir() else p.lchmod(0o664)
-    for p in sorted(Path(f"{root}/4_print").glob("**/*")):
         p.chmod(0o775) if p.is_dir() else p.lchmod(0o664)
 
     shutil.rmtree(Path(root), ignore_errors=True)
@@ -74,3 +65,44 @@ def initial_paths():
 
 def test_normal(initial_paths):
     pwf_import.main(Path(f"{root}/0_new/2024-10-30_event_1/"))
+
+
+def test_path_not_in_new(initial_paths):
+    test_common.create_paths((
+        (f"{root}/4_print/2024/2024-10-30_event_2/", 0),
+        (f"{root}/4_print/2024/2024-10-30_event_2/jpg/", 0),
+        (f"{root}/4_print/2024/2024-10-30_event_2/jpg/DSC_1000.jpg", 0),
+    ))
+    with pytest.raises(ValueError) as ex:
+        pwf_import.main(Path(f"{root}/4_print/2024/2024-10-30_event_2/"))
+
+    assert str(ex.value) == \
+        "Invalid path! Can only run against event dirs in 0_new!"
+
+
+def test_path_is_no_event_dir(initial_paths):
+    test_common.create_paths((
+        (f"{root}/4_print/2024/2024-10-30_event_2/", 0),
+        (f"{root}/4_print/2024/2024-10-30_event_2/jpg/", 0),
+        (f"{root}/4_print/2024/2024-10-30_event_2/jpg/DSC_1000.jpg", 0),
+    ))
+    with pytest.raises(ValueError) as ex:
+        pwf_import.main(Path(f"{root}/4_print/2024/"))
+
+    assert str(ex.value) == \
+        "Invalid path! Can only run against event dirs in 0_new!"
+
+
+def test_event_without_year(initial_paths):
+    test_common.create_paths((
+        (f"{root}/0_new/2024_event_2/", 0),
+        (f"{root}/0_new/2024_event_2/jpg/", 0),
+        (f"{root}/0_new/2024_event_2/jpg/DSC_1000.jpg", 0),
+        (f"{root}/0_new/event_3/", 0),
+    ))
+    pwf_import.main(Path(f"{root}/0_new/2024_event_2/"))
+
+    with pytest.raises(ValueError) as ex:
+        pwf_import.main(Path(f"{root}/0_new/event_3/"))
+    assert str(ex.value) == \
+        "Cannot detect year and no year was provided by argument!"

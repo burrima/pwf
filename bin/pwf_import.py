@@ -75,8 +75,8 @@ def main(path: Path, ignorelist: set | None = None, year: int | None = None,
 
     if path_info.year is None:
         if year is None:
-            raise RuntimeError(
-                "Cannot auto-detect year and no year was provided with -y!")
+            raise ValueError(
+                "Cannot detect year and no year was provided by argument!")
         if year < 1900 or year > 2100:
             raise ValueError(
                 "Invalid year provided! Must be between 1900 and 2100")

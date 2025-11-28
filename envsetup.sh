@@ -58,13 +58,23 @@ _fzf_compgen_dir() {
 alias ll >/dev/null 2>&1 || alias ll="ls -alF"
 _fzf_setup_completion dir ll
 _fzf_setup_completion dir ls
+_fzf_setup_completion dir pwf-check
 _fzf_setup_completion dir pwf_check.py
+_fzf_setup_completion dir pwf-cleanup
 _fzf_setup_completion dir pwf_cleanup.py
+_fzf_setup_completion dir pwf-import
 _fzf_setup_completion dir pwf_import.py
+_fzf_setup_completion dir pwf-prepare-lab
 _fzf_setup_completion dir pwf_prepare_lab.py
+_fzf_setup_completion dir pwf-statistics
 _fzf_setup_completion dir pwf_statistics.py
+_fzf_setup_completion path pwf-downsize
 _fzf_setup_completion path pwf_downsize.py
+_fzf_setup_completion path pwf-extract-previews
 _fzf_setup_completion path pwf_extract_previews.py
+_fzf_setup_completion path pwf-link
 _fzf_setup_completion path pwf_link.py
+_fzf_setup_completion path pwf-protect
 _fzf_setup_completion path pwf_protect.py
+_fzf_setup_completion path pwf-rename-by-date
 _fzf_setup_completion path pwf_rename_by_date.py

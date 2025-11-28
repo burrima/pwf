@@ -214,7 +214,7 @@ def test_non_existing_src_path(initial_paths, caplog):
 
 
 def test_unsupported_extension(initial_paths, caplog):
-    file = f"{root}/2_lab/2024/2024-10-30_ev_1/hello.xyz"
+    file = f"{root}/2_lab/2024/2024-10-30_ev_1/jpg/hello.xyz"
     test_common.create_paths((
         (file, 0),
     ))

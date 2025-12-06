@@ -67,16 +67,38 @@ def unprotect(path: Path, is_all: bool = False):
 
 
 def protect(path: Path):
+    """
+    Protect a path by setting dirs and files read-only and computing MD5 sum
+    for each file into root-path md5 file.
+
+    MD5 sums will only be computed and added to the md5 file if they are not
+    yet listed there. If a file has been overwritten, it won't be detected by
+    this algorithm - the MD5 sum will be wrong in this case (use other code to
+    check validity).
+    """
     md5_file = path.parent / (path.name + ".md5")
+    if md5_file.exists():
+        md5sums = _read_md5sums_file(path)
+    else:
+        md5sums = dict()
 
     for p in sorted([path] + list(path.glob("**/*"))):
         if p.is_dir():
             p.chmod(0o555)
         elif p.is_file():
-            md5sum = compute_md5sum(p, is_partial=False)
-            with open(md5_file, "a") as f:
-                f.write(f"{md5sum} *{p.relative_to(path.parent)}\n")
             p.lchmod(0o444)
+
+            rel_p = p.relative_to(path.parent)
+            if str(rel_p) in md5sums.values():
+                continue  # file is already there
+
+            md5sum = compute_md5sum(p, is_partial=False)
+            md5sums[md5sum] = (rel_p, True)
+
+    with open(md5_file, "w") as f:
+        for md5sum, (path, is_binary) in md5sums.items():
+            asterix = "*" if is_binary else ""
+            f.write(f"{md5sum} {asterix}{path}\n")
 
     # protect md5 file:
     if md5_file.exists():  # unlikely, but possible that path is empty

@@ -27,6 +27,7 @@ TODO: implement tests! There are no tests implemented yet!
 """
 
 import pytest
+import re
 from bin import pwf_init
 from bin import pwf_import
 from bin import common
@@ -106,3 +107,44 @@ def test_event_without_year(initial_paths):
         pwf_import.main(Path(f"{root}/0_new/event_3/"))
     assert str(ex.value) == \
         "Cannot detect year and no year was provided by argument!"
+
+
+def test_add_images_to_existing_event(initial_paths):
+    pwf_import.main(Path(f"{root}/0_new/2024-10-30_event_1/"))
+    test_common.create_paths((
+        (f"{root}/0_new/2024-10-30_event_1/jpg/DSC_1003.jpg", 1000),
+        (f"{root}/0_new/2024-10-30_event_1/jpg/DSC_1004.jpg", 1000),
+    ))
+    files = ("DSC_1000.jpg", "DSC_1001.jpg", "DSC_1002.jpg", "DSC_1003.jpg",
+             "DSC_1004.jpg")
+
+    pwf_import.main(Path(f"{root}/0_new/2024-10-30_event_1/"))
+
+    # assert that all files are at correct locations:
+    for i, p in enumerate(
+            sorted(Path(f"{root}/1_original/2024/").glob("**/*.*"))):
+        print(p)
+        assert str(p) == (
+            f"{root}/1_original/2024/2024-10-30_event_1/jpg/{files[i]}")
+
+    # assert that md5 checksum file is correct:
+    with open(f"{root}/1_original/2024.md5", "r") as f:
+        lines = f.readlines()
+    for i, line in enumerate(lines):
+        print(line)
+        assert re.match(
+            r"[0-9a-f]+ \*2024/2024-10-30_event_1/jpg/" + files[i],
+            line) is not None
+
+
+def test_import_existing_file(initial_paths):
+    pwf_import.main(Path(f"{root}/0_new/2024-10-30_event_1/"))
+    test_common.create_paths((
+        (f"{root}/0_new/2024-10-30_event_1/jpg/DSC_1000.jpg", 1000),
+    ))
+
+    with pytest.raises(RuntimeError) as ex:
+        pwf_import.main(Path(f"{root}/0_new/2024-10-30_event_1/"))
+
+    assert str(ex.value) == \
+        "File jpg/DSC_1000.jpg exists in destination path!"

@@ -94,6 +94,12 @@ def main(path: Path, ignorelist: set | None = None, year: int | None = None,
     dst_year_path = common.pwf_root_path / "1_original" / str(path_info.year)
     dst_path = dst_year_path / path_info.event
 
+    # check if any source file exists in the destination path
+    for src_file in path.glob("**/*.*"):
+        file_rel = src_file.relative_to(path)
+        if (dst_path / file_rel).exists():
+            raise RuntimeError(f"File {file_rel} exists in destination path!")
+
     logger.info(
         f"  Move: {common.pwf_path(path)} -> {common.pwf_path(dst_path)}")
 
@@ -102,7 +108,10 @@ def main(path: Path, ignorelist: set | None = None, year: int | None = None,
     else:
         pwf_protect.unprotect(dst_year_path)
 
-        shutil.move(path, dst_path)
+        if dst_path.exists():
+            shutil.copytree(path, dst_path, dirs_exist_ok=True)
+        else:
+            shutil.move(path, dst_path)
 
         if not keep_unprotected:
             pwf_protect.protect(dst_year_path)

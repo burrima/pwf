@@ -200,11 +200,21 @@ def test_fix_name(initial_paths, caplog):
 
 def test_path(initial_paths, caplog):
     logging.info(">>> create files in wrong subdirs")
-    test_common.create_paths((
-        (f"{root}/0_new/2024-10-30_example_event/raw/myFile.jpg", 0),
-        (f"{root}/0_new/2024-10-30_example_event/jpg/myFile.NEF", 0),
-        (f"{root}/0_new/2024-10-30_example_event/jpg/myFile.asdf", 0),
-    ))
+    nok_files = (
+        f"{root}/0_new/2024-10-30_example_event/raw/myFile.jpg",
+        f"{root}/0_new/2024-10-30_example_event/jpg/myFile.NEF",
+        f"{root}/0_new/2024-10-30_example_event/jpg/myFile.asdf"
+        f"{root}/0_new/2024-10-30_example_event/jpg/myFile.png",
+        f"{root}/0_new/2024-10-30_example_event/jpg/README.md",
+        f"{root}/0_new/2024-10-30_example_event/raw/README.md",
+    )
+    ok_files = (
+        f"{root}/0_new/2024-10-30_example_event/README.md",
+        f"{root}/0_new/2024-10-30_example_event/doc/README.md",
+    )
+    test_common.create_paths(
+        ((x, 0) for x in nok_files + ok_files)
+    )
 
     logging.info(">>> check path violations")
     with pytest.raises(AssertionError) as ex:
@@ -212,12 +222,9 @@ def test_path(initial_paths, caplog):
 
     assert str(ex.value) == "Found files in wrong locations!"
 
-    event_path = "0_new/2024-10-30_example_event"
-    assert f"INFO File in wrong location: {event_path}/jpg/myFile.NEF" in\
-        caplog.text
-    assert f"INFO File in wrong location: {event_path}/raw/myFile.jpg" in\
-        caplog.text
-    assert "WARNING Ignored suffixes: {'.asdf'}" in caplog.text
+    for file in nok_files:
+        path = Path(file).relative_to(root)
+        assert f"ERROR File in wrong location: {path}" in caplog.text
 
 
 def test_prot(initial_paths, caplog):

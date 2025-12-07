@@ -148,3 +148,12 @@ def test_import_existing_file(initial_paths):
 
     assert str(ex.value) == \
         "File jpg/DSC_1000.jpg exists in destination path!"
+
+
+def test_png_file_in_jpg_folder(initial_paths):
+    test_common.create_paths((
+        (f"{root}/0_new/2024-10-30_event_1/jpg/DSC_2000.png", 1000),
+    ))
+    with pytest.raises(AssertionError) as ex:
+        pwf_import.main(Path(f"{root}/0_new/2024-10-30_event_1/"))
+    assert str(ex.value) == "Found files in wrong locations!"

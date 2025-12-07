@@ -230,22 +230,24 @@ def _check_paths(path: Path):
     logger.info("check paths...")
 
     found_any = False
-    ignored: set[str] = set()
 
     for p in path.glob("**/*"):
         if p.is_dir():  # ignore dirs (handle links as files)
             continue
 
         suffix = p.suffix
-        if suffix in common.valid_file_locations.keys():
-            if p.parent.name != common.valid_file_locations[suffix]:
-                logger.info(f"File in wrong location: {common.pwf_path(p)}")
-                found_any = True
-        else:
-            ignored.add(suffix)
 
-    if len(ignored) > 0:
-        logger.warning(f"Ignored suffixes: {ignored}")
+        if suffix in common.valid_file_locations.keys():  # supported suffix?
+            if p.parent.name != common.valid_file_locations[suffix]:
+                logger.error(f"File in wrong location: {common.pwf_path(p)}")
+                found_any = True
+            # else: valid case!
+        else:
+            if p.parent.name in common.valid_file_locations.values():
+                logger.error(f"File in wrong location: {common.pwf_path(p)}")
+                found_any = True
+            else:
+                logger.warning(f"No supported file format: {p}")
 
     if found_any:
         raise AssertionError("Found files in wrong locations!")

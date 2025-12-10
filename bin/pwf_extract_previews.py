@@ -158,10 +158,10 @@ def main(src_path: Path, dst_path: Path | None = None,
         files = [src_path]
 
     # create preview of each file
-    for file in files:
+    for i, file in enumerate(files):
 
         if filt is not None and file.name in filt:
-            logger.info(f"Ignore (no filter match): {file}")
+            logger.warning(f"Ignore (no filter match): {file}")
             continue
 
         # define name of preview file
@@ -169,18 +169,18 @@ def main(src_path: Path, dst_path: Path | None = None,
 
         # ignore exiting preview files
         if preview_file.exists():
-            logger.info(
+            logger.warning(
                 f"Ignore (exists): {file.relative_to(common.pwf_root_path)}")
             continue
 
         # ignore src files which are already a preview file
         if str(file).endswith("-preview.jpg"):
-            logger.info(
+            logger.warning(
                 f"Ignore (preview): {file.relative_to(common.pwf_root_path)}")
             continue
 
         prefix = "NONO: " if is_nono else ""
-        logger.info(f"{prefix}{file.relative_to(common.pwf_root_path)} -> " +
+        logger.debug(f"{prefix}{file.relative_to(common.pwf_root_path)} -> " +
                     f"{preview_file.relative_to(common.pwf_root_path)}")
 
         # now extract preview
@@ -191,7 +191,12 @@ def main(src_path: Path, dst_path: Path | None = None,
             if not is_nono:
                 extract_raw_preview(file, preview_file)
         else:
-            logger.info(f"Ignored file due to unsupported extension: {file}")
+            logger.warning(
+                f"Ignored file due to unsupported extension: {file}")
+
+        # # TODO: move to common code!
+        # progress = int(100 * i / len(files))
+        # logger.info("\b[" + "#" * progress + " " * (100-progress) + "]")
 
     logger.info("pwf_extract_previews: OK")
 

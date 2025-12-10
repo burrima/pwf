@@ -125,10 +125,18 @@ def scale_image(src: Path | Image.Image, dst_path: Path,
                           resample=Image.Resampling.BICUBIC,
                           reducing_gap=3.0)
 
+    exif = im.info.get('exif')
+    if exif is None:
+        logger.warning(f"Image without exif info: {src}")
+        im_scaled.save(dst_path,
+                       'jpeg',
+                       quality=80)
+        return
+
     im_scaled.save(dst_path,
                    'jpeg',
                    icc_profile=im.info.get('icc_profile'),
-                   exif=im.info.get('exif'),
+                   exif=exif,
                    quality=80)
 
 

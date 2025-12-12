@@ -181,7 +181,7 @@ def main(src_path: Path, dst_path: Path | None = None,
 
         prefix = "NONO: " if is_nono else ""
         logger.debug(f"{prefix}{file.relative_to(common.pwf_root_path)} -> " +
-                    f"{preview_file.relative_to(common.pwf_root_path)}")
+                     f"{preview_file.relative_to(common.pwf_root_path)}")
 
         # now extract preview
         if file.suffix[1:] in common.jpg_file_extensions:

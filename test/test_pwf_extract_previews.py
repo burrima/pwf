@@ -38,6 +38,7 @@ from bin import pwf_extract_previews
 from bin import common
 from test import common as test_common
 from pathlib import Path
+import logging
 import shutil
 
 
@@ -85,6 +86,7 @@ def initial_paths():
 
 def test_inplace_file(initial_paths, caplog):
     path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_100.jpg")
+    pwf_extract_previews.logger.setLevel(logging.DEBUG)
     pwf_extract_previews.main(path, is_nono=True)
 
     text = "NONO: 2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_100.jpg -> " +\
@@ -94,6 +96,7 @@ def test_inplace_file(initial_paths, caplog):
 
 def test_inplace_dir(initial_paths, caplog):
     path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/")
+    pwf_extract_previews.logger.setLevel(logging.DEBUG)
     pwf_extract_previews.main(path, is_nono=True)
 
     for i in range(100, 103):
@@ -111,6 +114,7 @@ def test_src_file_to_dst_dir(initial_paths, caplog):
     src_path = Path(
         f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_100.jpg")
     dst_path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/asdf/")
+    pwf_extract_previews.logger.setLevel(logging.DEBUG)
     pwf_extract_previews.main(src_path, dst_path, is_nono=True)
 
     text = "NONO: 2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_100.jpg -> " +\
@@ -127,6 +131,7 @@ def test_src_file_to_dst_file(initial_paths, caplog):
         f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/DSC_100.jpg")
     dst_path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/asdf/my.jpg")
     with pytest.raises(ValueError) as ex:
+        pwf_extract_previews.logger.setLevel(logging.DEBUG)
         pwf_extract_previews.main(src_path, dst_path, is_nono=True)
     assert str(ex.value) == "DST_PATH must be directory or '@lab'!"
 
@@ -138,6 +143,7 @@ def test_src_dir_to_dst_dir(initial_paths, caplog):
     ))
     src_path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/3_final_jpg/")
     dst_path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/asdf/")
+    pwf_extract_previews.logger.setLevel(logging.DEBUG)
     pwf_extract_previews.main(src_path, dst_path, is_nono=True)
 
     for i in range(100, 103):
@@ -150,6 +156,7 @@ def test_src_dir_to_dst_dir(initial_paths, caplog):
 def test_src_dir_to_tag_lab(initial_paths, caplog):
     src_path = Path(f"{root}/1_original/2024/2024-10-30_ev_1/")
     dst_path = Path(f"{root}/2_lab/2024/2024-10-30_ev_1/1_preview/")
+    pwf_extract_previews.logger.setLevel(logging.DEBUG)
     pwf_extract_previews.main(src_path, "@lab", is_nono=True)
 
     text = "Tag '@lab' automatically implies --recursive"
@@ -172,6 +179,7 @@ def test_ignore_existing_file(initial_paths, caplog):
          "DSC_101.jpg-preview.jpg", 0),
     ))
     src_path = Path(f"{root}/1_original/2024/2024-10-30_ev_1/")
+    pwf_extract_previews.logger.setLevel(logging.DEBUG)
     pwf_extract_previews.main(src_path, "@lab", is_nono=True)
 
     file = "1_original/2024/2024-10-30_ev_1/jpg/DSC_101.jpg"
@@ -195,6 +203,7 @@ def test_ignore_existing_src_preview_file(initial_paths, caplog):
         (f"{root}/0_new/2024/2024-10-30_ev_1/jpg/DSC_100-preview.jpg", 0),
     ))
     src_path = Path(f"{root}/0_new/2024/2024-10-30_ev_1/jpg/")
+    pwf_extract_previews.logger.setLevel(logging.DEBUG)
     pwf_extract_previews.main(src_path, None, is_nono=True)
 
     file = "0_new/2024/2024-10-30_ev_1/jpg/DSC_100-preview.jpg"
@@ -209,6 +218,7 @@ def test_non_existing_src_path(initial_paths, caplog):
     src_path = Path(f"{root}/0_new/2024/2024-10-30_ev_1/asdf/")
 
     with pytest.raises(ValueError) as ex:
+        pwf_extract_previews.logger.setLevel(logging.DEBUG)
         pwf_extract_previews.main(src_path, None, is_nono=True)
     assert str(ex.value) == "SRC_PATH does not exist!"
 
@@ -219,6 +229,7 @@ def test_unsupported_extension(initial_paths, caplog):
         (file, 0),
     ))
     src_path = Path(file)
+    pwf_extract_previews.logger.setLevel(logging.DEBUG)
     pwf_extract_previews.main(src_path, None, is_nono=True)
 
     text = f"Ignored file due to unsupported extension: {file}"

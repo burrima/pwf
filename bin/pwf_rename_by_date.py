@@ -65,26 +65,17 @@ info_text: str = dedent(
     """) + common.info_text
 
 
-def _add_prefix(file: Path, prefix: str, delimiter="-"):
-    newname = file.parent / f"{prefix}{delimiter}{file.name}"
-    logger.info(f"{file} => {newname}")
+def _add_prefix(file: Path, prefix: str,
+                delimiter: str = common.tag_name_delimiter):
+    newname = file.parent / common.prefix_str(file.name, prefix, delimiter)
+    logger.debug(f"{file} => {newname}")
     file.rename(newname)
 
 
-def _remove_prefix(file: Path, delimiter="-"):
-    newname = None
-    if delimiter != "-":
-        if delimiter in file.name:
-            newname = file.parent / file.name.split(delimiter, 2)[1]
-    elif re.match(r"^[0-9]{8}-[0-9]{6}-.*", file.name):
-        # backwards-compatibility
-        newname = file.parent / f"{file.name[16:]}"
-
-    if newname is None:
-        logger.error(f"Cannot determine new name: {file}")
-        return
-
-    logger.info(f"{file} => {newname}")
+def _remove_prefix(file: Path, delimiter: str = common.tag_name_delimiter):
+    newname = common.unprefix_str(file.name, delimiter)
+    newname = file.parent / newname
+    logger.debug(f"{file} => {newname}")
     file.rename(newname)
 
 
@@ -109,8 +100,11 @@ def _parse_date_str_from_exif(exif_data):
 
 def _parse_camera_str_from_exif(exif_data):
     camera = exif_data["Model"]
-    camera = camera.replace(" ", "")
-    return camera
+    camera_clean = ""
+    for c in camera:
+        if re.match(rf"[{common.legal_characters}]", c):
+            camera_clean += c
+    return camera_clean
 
 
 def _find_corrections_file(file: Path):
@@ -129,7 +123,7 @@ def _get_corrections_def(file: Path):
 
     corr_file = _find_corrections_file(file)
     if corr_file is not None:
-        logger.info(corr_file)
+        logger.debug(corr_file)
         with open(corr_file, "r") as f:
             corr_def = yaml.safe_load(f)
         return corr_def
@@ -172,11 +166,11 @@ def main(path: Path, is_undo: bool = False, is_bare: bool = False,
 
     if is_undo:
         for file in files:
-            _remove_prefix(file, delimiter="=")
+            _remove_prefix(file, delimiter=common.tag_name_delimiter)
         return
 
     corr_defs = _get_corrections_def(path)
-    logger.info(corr_defs)
+    logger.debug(corr_defs)
 
     for file in files:
 
@@ -198,7 +192,7 @@ def main(path: Path, is_undo: bool = False, is_bare: bool = False,
         else:
             prefix = f"{dt_str}-{camera}" if camera is not None else dt_str
 
-        _add_prefix(file, prefix, delimiter="=")
+        _add_prefix(file, prefix, delimiter=common.tag_name_delimiter)
 
 
 if __name__ == "__main__":

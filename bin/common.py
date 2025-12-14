@@ -34,6 +34,9 @@ logger = logging.getLogger(__name__)
 legal_characters: str = r"\wäöüÄÖÜé~._-"
 
 
+tag_name_delimiter: str = r"--"
+
+
 pwf_root = os.getenv("PWF_ROOT_PATH")
 if pwf_root is None:
     raise ValueError("PWF_ROOT_PATH is not defined. Is envstup.sh sourced?")
@@ -236,6 +239,34 @@ def parse_path(path: Path) -> Pwf_path_info:
     return info
 
 
+def prefix_str(file_name: str, prefix: str,
+               delimiter: str = tag_name_delimiter):
+    """
+    Add given prefix to given file name (pure string operations).
+    """
+    return f"{prefix}{delimiter}{file_name}"
+
+
+def unprefix_str(file_name: str, delimiter: str = tag_name_delimiter):
+    """
+    Remove prefix from file name (pure string operations).
+
+    The method works with modern separators, but has a fallback for old
+    bash-script based PWF tools where it just cuts-off the first 16 characters.
+    """
+    newname = None
+    if delimiter in file_name:
+        newname = file_name.split(delimiter, 2)[1]
+    elif re.match(r"^[0-9]{8}-[0-9]{6}-.*", file_name):
+        # backwards-compatibility
+        newname = f"{file_name[16:]}"
+
+    if newname is None:
+        raise RuntimeError(f"Cannot determine new name: {file_name}")
+
+    return newname
+
+
 def get_orig_name(path: Path, with_extension: bool = False) -> str:
     """
     Extract original file name from given path.
@@ -253,11 +284,10 @@ def get_orig_name(path: Path, with_extension: bool = False) -> str:
     if not with_extension:
         name = Path(name).stem
 
-    match = re.search(r"[a-zA-Z]", name)
-    if match is None:
-        raise RuntimeError(f"Unable to determine orig name from {name=}")
-    idx = match.start()
-    name = name[idx:]
+    try:
+        name = unprefix_str(name)
+    except RuntimeError:
+        logger.warning(f"Unable to remove name prefix: {path}")
     return name
 
 

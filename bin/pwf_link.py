@@ -152,7 +152,7 @@ def _link_to_file(src_path: Path, dst_path: Path, is_forced: bool = False):
         dst_path.unlink()
     try:
         rel_src = _relative_to(src_path, dst_path)
-        logger.info(f"link: {dst_path} -> {rel_src}")
+        logger.debug(f"link: {dst_path} -> {rel_src}")
         dst_path.symlink_to(rel_src)
     except FileExistsError:
         logger.warning("Target file exists, not touched!")

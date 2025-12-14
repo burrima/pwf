@@ -155,6 +155,7 @@ def test_lab_preparation(initial_paths, caplog, type_dir):
     dst = f"{root}/2_lab/{event_dir}/2_original_{type_dir}/{file}"
 
     logging.info(">>># link")
+    pwf_link.logger.setLevel(logging.DEBUG)
     pwf_link.main(Path(f"{root}/1_original/{event_dir}/{type_dir}"),
                   Path("@lab"), is_all=True)
 

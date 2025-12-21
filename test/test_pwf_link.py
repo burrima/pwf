@@ -123,6 +123,36 @@ def test__relative_to():
         assert c == Path(vector[2])
 
 
+def test_link_of_link(initial_paths):
+    """
+    Verifies that a link to a link is in fact a relative link to the original
+    file (relative via pwf root dir). This is important because sub-folders in
+    the tree might be links themselves and might change (thus relative paths
+    are used).
+    """
+    test_common.create_paths((
+        (f"{root}/2_lab/{event_dir}/", 0),
+        (f"{root}/2_lab/{event_dir}/2_original_jpg/", 0),
+        (f"{root}/2_lab/{event_dir}/2_final_jpg/", 0),
+    ))
+
+    src = Path(f"{root}/1_original/{event_dir}/jpg/DSC_100.jpg")
+    link = Path(f"{root}/2_lab/{event_dir}/2_original_jpg/DSC_100.jpg")
+    link_of_link = Path(f"{root}/2_lab/{event_dir}/2_final_jpg/DSC_100.jpg")
+    pwf_link._link_to_file(src, link)
+    pwf_link._link_to_file(link, link_of_link)
+
+    assert Path(link).is_symlink()
+    assert Path(link).exists()  # link points to correct target
+    assert str(link_of_link.readlink()) == \
+        f"../../../../1_original/{event_dir}/jpg/DSC_100.jpg"
+
+    assert Path(link_of_link).is_symlink()
+    assert Path(link_of_link).exists()  # link points to correct target
+    assert str(link_of_link.readlink()) == \
+        f"../../../../1_original/{event_dir}/jpg/DSC_100.jpg"
+
+
 def test__get_filter_by_lab_preview(initial_paths):
     preview_dir = f"{root}/2_lab/{event_dir}/1_preview"
     test_common.create_paths((

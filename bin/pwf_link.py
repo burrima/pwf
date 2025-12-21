@@ -147,7 +147,7 @@ def _link_to_file(src_path: Path, dst_path: Path, is_forced: bool = False):
     """
 
     if src_path.is_symlink():
-        src_path = src_path.readlink()
+        src_path = src_path.resolve()
     if is_forced and dst_path.exists(follow_symlinks=False):
         dst_path.unlink()
     try:

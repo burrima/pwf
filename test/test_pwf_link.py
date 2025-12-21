@@ -20,6 +20,7 @@
 # SOFTWARE.
 #
 
+import collections
 import pytest
 from bin import pwf_init
 from bin import pwf_link
@@ -112,15 +113,16 @@ def test__relative_to():
     Test of method _relative_to()
     """
 
+    Vector = collections.namedtuple("Vector", ["src", "dst", "link"])
     vectors = [
-        (f"{root}/a/b/c", f"{root}/a/b/d", "../../a/b/c"),
-        (f"{root}/a/b/c/", f"{root}/a/b/d", "../../a/b/c"),
-        (f"{root}/a/b/c/", f"{root}/a/b/d/x", "../../../a/b/c"),
+        Vector(f"{root}/a/b/c", f"{root}/a/b/d", "../../a/b/c"),
+        Vector(f"{root}/a/b/c/", f"{root}/a/b/d", "../../a/b/c"),
+        Vector(f"{root}/a/b/c/", f"{root}/a/b/d/x", "../../../a/b/c"),
     ]
 
     for vector in vectors:
-        c = pwf_link._relative_to(Path(vector[0]), Path(vector[1]))
-        assert c == Path(vector[2])
+        c = pwf_link._relative_to(Path(vector.src), Path(vector.dst))
+        assert c == Path(vector.link)
 
 
 def test_link_of_link(initial_paths):

@@ -118,6 +118,9 @@ def test__relative_to():
         Vector(f"{root}/a/b/c", f"{root}/a/b/d", "../../a/b/c"),
         Vector(f"{root}/a/b/c/", f"{root}/a/b/d", "../../a/b/c"),
         Vector(f"{root}/a/b/c/", f"{root}/a/b/d/x", "../../../a/b/c"),
+        # special case with relative src path (link-of-link):
+        Vector(f"../../../1_original/b/c", f"{root}/2_lab/b/d",
+               "../../1_original/b/c"),
     ]
 
     for vector in vectors:

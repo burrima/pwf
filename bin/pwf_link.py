@@ -117,6 +117,30 @@ def _check_is_allowed(src_path: Path, dst_path: Path):
             raise ValueError("Not allowed to link to this dst_path!")
 
 
+def _strip_dot_dots(path: Path) -> Path:
+    """
+    Given a relative path to the root and into a sub-folder, this method strips
+    away the part with the "../../../" which leads up to the root.
+
+    If the root is not found (i.e. first non-../ is not a state folder), a
+    RuntimeError is thrown.
+    """
+    new_path = Path()
+    root_found = False  # ignore any ../ after root has been found
+    for part in path.parts:
+        if root_found:  # once root is found, just append the remaining parts
+            new_path /= part
+            continue
+        if part == "..":  # ignore ../ as long as root is not found
+            continue
+        if part in common.state_dirs.values():
+            root_found = True
+            new_path /= part
+    if not root_found:
+        raise RuntimeError("Cannot find root from relative path!")
+    return new_path
+
+
 def _relative_to(src: Path, dst: Path) -> Path:
     """
     Returns the relative path from dst to src.
@@ -131,7 +155,13 @@ def _relative_to(src: Path, dst: Path) -> Path:
 
     However, this is not going through the root path.
     """
-    rel_src = src.relative_to(common.pwf_root_path)
+    if src.is_symlink():
+        src = src.readlink()
+
+    if src.parts[0] == "..":  # path is a relative path towards pwf root path
+        rel_src = _strip_dot_dots(src)
+    else:
+        rel_src = src.relative_to(common.pwf_root_path)
     rel_dst = dst.relative_to(common.pwf_root_path)
     rel_root = Path("../" * (len(rel_dst.parents) - 1))
     return rel_root / rel_src
@@ -146,8 +176,6 @@ def _link_to_file(src_path: Path, dst_path: Path, is_forced: bool = False):
     With is_forced=True, existing files will be overwritten, else ignored.
     """
 
-    if src_path.is_symlink():
-        src_path = src_path.resolve()
     if is_forced and dst_path.exists(follow_symlinks=False):
         dst_path.unlink()
     try:

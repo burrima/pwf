@@ -23,7 +23,7 @@
 
 from PIL import ImageFile
 from bin import common
-from bin.pwf_downsize import tag_sizes, scale_image
+from bin.pwf_downsize import tag_sizes, scale_image, copy_exif
 from pathlib import Path
 from textwrap import dedent
 import argparse
@@ -75,7 +75,8 @@ def extract_raw_preview(src_path: Path, dst_path: Path) -> None:
         p.feed(thumb.data)
         im = p.close()
 
-    scale_image(im, dst_path, tag_sizes[preview_size_tag])
+    scale_image(im, dst_path, tag_sizes[preview_size_tag], do_copy_exif=False)
+    copy_exif(src_path, dst_path)
 
 
 def extract_jpg_preview(src_path: Path, dst_path: Path):

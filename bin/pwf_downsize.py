@@ -28,6 +28,7 @@ from textwrap import dedent
 import argparse
 import copy
 import logging
+import pyexiv2
 
 
 logger = logging.getLogger(__name__)
@@ -107,7 +108,7 @@ def compute_inside_box(im_size: Size, box: Size, align: bool = True) -> Size:
 
 
 def scale_image(src: Path | Image.Image, dst_path: Path,
-                box: Size, align_box: bool = True) -> None:
+                box: Size, align_box: bool = True, do_copy_exif=True) -> None:
     # convert -filter Sinc -resize "$SIZE" -quality 90 "$in_file" "$out_file"
 
     im: Image.Image
@@ -125,19 +126,20 @@ def scale_image(src: Path | Image.Image, dst_path: Path,
                           resample=Image.Resampling.BICUBIC,
                           reducing_gap=3.0)
 
-    exif = im.info.get('exif')
-    if exif is None:
-        logger.warning(f"Image without exif info: {src}")
-        im_scaled.save(dst_path,
-                       'jpeg',
-                       quality=80)
-        return
-
     im_scaled.save(dst_path,
                    'jpeg',
-                   icc_profile=im.info.get('icc_profile'),
-                   exif=exif,
                    quality=80)
+
+    if do_copy_exif:
+        copy_exif(src, dst_path)
+
+
+def copy_exif(src: Path, dst: Path):
+    with pyexiv2.Image(str(src)) as src_img:
+        with pyexiv2.Image(str(dst)) as dst_img:
+            icc = src_img.read_icc()
+            copy_icc = True if icc != b'' else False
+            src_img.copy_to_another_image(dst_img, icc=copy_icc)
 
 
 def scale_video(src_path: Path, dst_path: Path, box: Size) -> None:

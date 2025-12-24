@@ -155,6 +155,9 @@ def get_file_corrections(corr_defs: list[CorrectionsDefinitions],
     """
     Returns the corrections to be applied to given file name. Searches through
     given corr_defs. Returns None if no corrections are found for this file.
+
+    One file can only have 1 set of corrections. If different filters match the
+    same file, only the first one is selected.
     """
     for corr_def in corr_defs:
         correction_found = True

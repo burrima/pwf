@@ -86,7 +86,12 @@ def read_exif_info(file: Path) -> tuple[datetime, str]:
     metadata = pyexiv2.ImageMetadata(str(file))
     metadata.read()
 
-    date = metadata["Exif.Image.DateTime"].value
+    # Try to take DateTimeOriginal and fall-back to DateTime
+    date_key = "Exif.Image.DateTimeOriginal"
+    if date_key not in metadata.exif_keys:
+        date_key = "Exif.Image.DateTime"
+
+    date = metadata[date_key].value
     camera = metadata["Exif.Image.Model"].value
 
     camera_clean = ""
@@ -158,8 +163,8 @@ def main(path: Path, is_undo: bool = False, is_bare: bool = False,
 
         try:
             date, camera = read_exif_info(file)
-        except Exception:
-            logger.error(f"Unable to read EXIF info of: {file}")
+        except Exception as err:
+            logger.error(f"Unable to read EXIF info of: {file} {err=}")
             continue
 
         delta = _get_time_delta(file, corr_defs)

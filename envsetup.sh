@@ -29,8 +29,14 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 (cd $SCRIPT_DIR && python3 -m venv venv --prompt pwf)
 . "$SCRIPT_DIR"/venv/bin/activate
 
+
+# TODO: check if following packages are installed (for ubunut 24.04):
+# - libexiv2-dev
+# - libboost-python-dev
+
 echo "Install required python packages into venv"
-pip install pyexiv2 pillow rawpy pytest mypy pyyaml types-PyYAML dataclass-wizard
+pip install --upgrade pip setuptools wheel
+pip install py3exiv2 pillow rawpy pytest mypy pyyaml types-PyYAML dataclass-wizard
 
 echo "Add bin folder to PATH variable"
 export PATH="$SCRIPT_DIR/bin/:$PATH"
@@ -78,3 +84,5 @@ _fzf_setup_completion path pwf-protect
 _fzf_setup_completion path pwf_protect.py
 _fzf_setup_completion path pwf-rename-by-date
 _fzf_setup_completion path pwf_rename_by_date.py
+_fzf_setup_completion path pwf-fix-exif
+_fzf_setup_completion path pwf_fix_exif.py

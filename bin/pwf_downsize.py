@@ -107,18 +107,11 @@ def compute_inside_box(im_size: Size, box: Size, align: bool = True) -> Size:
     return Size(*(out_size.get_int_size()))
 
 
-def scale_image(src: Path | Image.Image, dst_path: Path,
-                box: Size, align_box: bool = True, do_copy_exif=True) -> None:
+def scale_image(src: Path, dst_path: Path, box: Size, align_box: bool = True,
+                do_copy_exif=True) -> None:
     # convert -filter Sinc -resize "$SIZE" -quality 90 "$in_file" "$out_file"
 
-    im: Image.Image
-
-    if isinstance(src, Path):
-        im = Image.open(src)
-    elif isinstance(src, Image.Image):
-        im = src
-    else:
-        raise ValueError("src has wrong type!")
+    im = Image.open(src)
 
     size = compute_inside_box(Size(im.width, im.height), box, align_box)
 
@@ -126,20 +119,20 @@ def scale_image(src: Path | Image.Image, dst_path: Path,
                           resample=Image.Resampling.BICUBIC,
                           reducing_gap=3.0)
 
-    im_scaled.save(dst_path,
-                   'jpeg',
-                   quality=80)
+    im_scaled.save(dst_path, 'jpeg', quality=80)
 
     if do_copy_exif:
         copy_exif(src, dst_path)
 
 
 def copy_exif(src: Path, dst: Path):
-    with pyexiv2.Image(str(src)) as src_img:
-        with pyexiv2.Image(str(dst)) as dst_img:
-            icc = src_img.read_icc()
-            copy_icc = True if icc != b'' else False
-            src_img.copy_to_another_image(dst_img, icc=copy_icc)
+    src_metadata = pyexiv2.ImageMetadata(str(src))
+    src_metadata.read()
+
+    dst_metadata = pyexiv2.ImageMetadata(str(dst))
+    dst_metadata.read()
+    src_metadata.copy(dst_metadata)
+    dst_metadata.write()
 
 
 def scale_video(src_path: Path, dst_path: Path, box: Size) -> None:

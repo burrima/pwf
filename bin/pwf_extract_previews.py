@@ -66,6 +66,8 @@ info_text: str = dedent(
 
 def extract_raw_preview(src_path: Path, dst_path: Path) -> None:
 
+    tmp_path = Path("/tmp") / (src_path.name + ".jpg")
+
     with rawpy.imread(str(src_path)) as raw:
         # raises rawpy.LibRawNoThumbnailError if thumbnail missing
         # raises rawpy.LibRawUnsupportedThumbnailError if unsupported
@@ -74,9 +76,12 @@ def extract_raw_preview(src_path: Path, dst_path: Path) -> None:
         p = ImageFile.Parser()
         p.feed(thumb.data)
         im = p.close()
+        im.save(tmp_path)
 
-    scale_image(im, dst_path, tag_sizes[preview_size_tag], do_copy_exif=False)
+    scale_image(tmp_path, dst_path, tag_sizes[preview_size_tag],
+                do_copy_exif=False)
     copy_exif(src_path, dst_path)
+    tmp_path.unlink()
 
 
 def extract_jpg_preview(src_path: Path, dst_path: Path):

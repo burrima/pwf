@@ -29,8 +29,8 @@ import argparse
 import logging
 from datetime import datetime, timedelta
 import re
-from bin.corrections_definitions import CorrectionsDefinitions, get_corrections_definitions, \
-    get_file_corrections
+from bin.corrections_definitions import CorrectionsDefinitions, \
+    get_corrections_definitions, get_file_corrections
 
 
 logger = logging.getLogger(__name__)
@@ -56,15 +56,21 @@ info_text: str = dedent(
 
     The exif_corrections.yaml must follow the syntax:
 
-        - file_name_filter: ".*"
-          exif_filters:
-            - tag: "Model"
-              filter: "Canon PowerShot G9 X"
-          time_correction:
-            days: 0
-            hours: 0
-            minutes: -10
-            seconds: -1
+        - filter:
+            filename: ".*"  # regex
+            tags:
+              - tag: "Model"
+                value: "Canon PowerShot G9 X"  # regex
+          corrections:
+            time:
+              days: 0
+              hours: 0
+              minutes: -10
+              seconds: -1
+            tags:
+              - tag: Artist
+                pattern: ".*"  # regex for re.sub()
+                replacement: "Martin Burri"  # repl for re.sub()
 
     Any of days, hours, minutes or seconds can be left away as long as there is
     at least one of them.

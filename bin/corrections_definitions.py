@@ -134,7 +134,7 @@ def find_corrections_file(file: Path) -> Path:
     raise FileNotFoundError("Unable to find exif_corrections.yaml in tree!")
 
 
-def get_corrections_definitions(file: Path) -> CorrectionsDefinitions:
+def get_corrections_definitions(file: Path) -> list[CorrectionsDefinitions]:
     """
     Finds and opens the file exif_corrections.yaml
 
@@ -144,10 +144,12 @@ def get_corrections_definitions(file: Path) -> CorrectionsDefinitions:
     """
     corr_file = find_corrections_file(file)
     cd = CorrectionsDefinitions.from_yaml_file(corr_file)
+    if not isinstance(cd, list):
+        cd = [cd]
     return cd
 
 
-def get_file_corrections(corr_defs: CorrectionsDefinitions,
+def get_file_corrections(corr_defs: list[CorrectionsDefinitions],
                          filename: str, exif_info) -> Corrections | None:
     """
     Returns the corrections to be applied to given file name. Searches through

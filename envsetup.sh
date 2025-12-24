@@ -30,7 +30,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "$SCRIPT_DIR"/venv/bin/activate
 
 
-# TODO: check if following packages are installed (for ubunut 24.04):
+# TODO: check if following packages are installed (for ubuntu 24.04):
 # - libexiv2-dev
 # - libboost-python-dev
 

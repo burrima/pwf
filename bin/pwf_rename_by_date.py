@@ -135,7 +135,7 @@ def _remove_prefix(file: Path,
 
 
 def _get_time_delta(filename: str, exif_tags: dict[str, str],
-                    corr_defs: CorrectionsDefinitions) -> timedelta:
+                    corr_defs: list[CorrectionsDefinitions]) -> timedelta:
     """
     Given an file name, the extracted exif_info and the corrections
     definitions, this method determines the time delta to be applied.
@@ -180,13 +180,10 @@ def main(path: Path, is_undo: bool = False, is_bare: bool = False,
         dt_str = dt.strftime("%Y%m%d-%H%M%S")
         camera = _parse_camera_from_exif(exif_tags)
 
-        if not add_camera:
-            camera = None
-
-        if camera is not None and camera_first:
+        if add_camera and camera_first:
             prefix = f"{camera}-{dt_str}"
         else:
-            prefix = f"{dt_str}-{camera}" if camera is not None else dt_str
+            prefix = f"{dt_str}-{camera}" if add_camera else dt_str
 
         _add_prefix(file, prefix, delimiter=common.tag_name_delimiter)
 

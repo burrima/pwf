@@ -31,6 +31,7 @@ from datetime import datetime, timedelta
 import re
 from bin.corrections_definitions import CorrectionsDefinitions, \
     get_corrections_definitions, get_file_corrections
+import pyexiv2  # type: ignore
 
 
 logger = logging.getLogger(__name__)
@@ -77,38 +78,23 @@ info_text: str = dedent(
     """) + common.info_text
 
 
-def read_exif_tags(file: Path) -> dict[str, str] | None:
+def read_exif_info(file: Path) -> tuple[datetime, str]:
     """
-    Reads and returns all EXIF tags from a file. If the file has no tag, None
-    is returned. Uses PIL Image.getexif() which is good for reading, but not
-    suitable for writing EXIF tags.
+    Reads and returns date and camera model from the file exif. Raises an
+    Exception if anything goes wrong (e.g. no EXIF tag present).
     """
-    try:
-        img = Image.open(file)
-        pil_exif = img.getexif()
-        assert len(pil_exif) > 0
-        exif_tags = {
-            str(ExifTags.TAGS.get(t, t)): str(v) for t, v in pil_exif.items()}
-    except Exception:
-        logger.error(f"Unable to read EXIF info of: {file}")
-        return None
+    metadata = pyexiv2.ImageMetadata(str(file))
+    metadata.read()
 
-    return exif_tags
+    date = metadata["Exif.Image.DateTime"].value
+    camera = metadata["Exif.Image.Model"].value
 
-
-def _parse_date_from_exif(exif_tags: dict[str, str]) -> datetime:
-    date_str = exif_tags["DateTime"]
-    dt = datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S")
-    return dt
-
-
-def _parse_camera_from_exif(exif_tags: dict[str, str]) -> str:
-    camera = exif_tags["Model"]
     camera_clean = ""
     for c in camera:
         if re.match(rf"[{common.legal_characters}]", c):
             camera_clean += c
-    return camera_clean
+
+    return (date, camera_clean)
 
 
 def _add_prefix(file: Path, prefix: str,
@@ -134,13 +120,13 @@ def _remove_prefix(file: Path,
     file.rename(newname)
 
 
-def _get_time_delta(filename: str, exif_tags: dict[str, str],
+def _get_time_delta(file: Path,
                     corr_defs: list[CorrectionsDefinitions]) -> timedelta:
     """
     Given an file name, the extracted exif_info and the corrections
     definitions, this method determines the time delta to be applied.
     """
-    corrections = get_file_corrections(corr_defs, filename, exif_tags)
+    corrections = get_file_corrections(corr_defs, file)
     if corrections is not None:
         correction = corrections.time
         return timedelta(days=correction.days,
@@ -170,20 +156,20 @@ def main(path: Path, is_undo: bool = False, is_bare: bool = False,
 
     for file in files:
 
-        exif_tags = read_exif_tags(file)
-        if exif_tags is None:
-            continue  # reporting already done
+        try:
+            date, camera = read_exif_info(file)
+        except Exception:
+            logger.error(f"Unable to read EXIF info of: {file}")
+            continue
 
-        delta = _get_time_delta(file.name, exif_tags, corr_defs)
-
-        dt = _parse_date_from_exif(exif_tags) + delta
-        dt_str = dt.strftime("%Y%m%d-%H%M%S")
-        camera = _parse_camera_from_exif(exif_tags)
+        delta = _get_time_delta(file, corr_defs)
+        date += delta
+        date_str = date.strftime("%Y%m%d-%H%M%S")
 
         if add_camera and camera_first:
-            prefix = f"{camera}-{dt_str}"
+            prefix = f"{camera}-{date_str}"
         else:
-            prefix = f"{dt_str}-{camera}" if add_camera else dt_str
+            prefix = f"{date_str}-{camera}" if add_camera else date_str
 
         _add_prefix(file, prefix, delimiter=common.tag_name_delimiter)
 

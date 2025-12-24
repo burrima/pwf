@@ -25,6 +25,7 @@ from bin import common
 from pathlib import Path
 import logging
 import re
+import pyexiv2  # type: ignore
 
 from dataclasses import dataclass
 from typing import List
@@ -150,7 +151,7 @@ def get_corrections_definitions(file: Path) -> list[CorrectionsDefinitions]:
 
 
 def get_file_corrections(corr_defs: list[CorrectionsDefinitions],
-                         filename: str, exif_info) -> Corrections | None:
+                         file: Path) -> Corrections | None:
     """
     Returns the corrections to be applied to given file name. Searches through
     given corr_defs. Returns None if no corrections are found for this file.
@@ -158,12 +159,16 @@ def get_file_corrections(corr_defs: list[CorrectionsDefinitions],
     for corr_def in corr_defs:
         correction_found = True
 
-        if not re.match(corr_def.filter.filename, filename):
+        if not re.match(corr_def.filter.filename, file.name):
             correction_found = False
             continue
 
+        metadata = pyexiv2.ImageMetadata(str(file))
+        metadata.read()
+
         for tag_filter in corr_def.filter.tags:
-            if re.match(tag_filter.value, exif_info[tag_filter.tag]) is None:
+            if re.match(tag_filter.value,
+                        metadata[tag_filter.tag].raw_value) is None:
                 correction_found = False
                 break
 

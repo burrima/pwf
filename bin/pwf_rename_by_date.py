@@ -29,7 +29,8 @@ import argparse
 import logging
 from datetime import datetime, timedelta
 import re
-import yaml
+from bin.corrections_definitions import CorrectionsDefinitions, get_corrections_definitions, \
+    get_file_corrections
 
 
 logger = logging.getLogger(__name__)
@@ -48,58 +49,55 @@ info_text: str = dedent(
     bash-scripts only.
 
     By default (=new way), the script traverses the directory tree upwards to
-    find the yaml file "date_corrections.yaml" automatically.
+    find the yaml file "exif_corrections.yaml" automatically.
 
     Auto-correction can be disabled completely with the option -b in which case
     the date will be based on pure, uncorrected EXIF data.
 
-    The date_corrections.yaml must follow the syntax:
+    The exif_corrections.yaml must follow the syntax:
 
         - file_name_filter: ".*"
           exif_filters:
             - tag: "Model"
               filter: "Canon PowerShot G9 X"
-          correction:
+          time_correction:
+            days: 0
+            hours: 0
             minutes: -10
             seconds: -1
+
+    Any of days, hours, minutes or seconds can be left away as long as there is
+    at least one of them.
     """) + common.info_text
 
 
-def _add_prefix(file: Path, prefix: str,
-                delimiter: str = common.tag_name_delimiter):
-    newname = file.parent / common.prefix_str(file.name, prefix, delimiter)
-    logger.debug(f"{file} => {newname}")
-    file.rename(newname)
-
-
-def _remove_prefix(file: Path, delimiter: str = common.tag_name_delimiter):
-    newname = common.unprefix_str(file.name, delimiter)
-    newname = file.parent / newname
-    logger.debug(f"{file} => {newname}")
-    file.rename(newname)
-
-
-def _get_exif_info(file: Path):
+def read_exif_tags(file: Path) -> dict[str, str] | None:
+    """
+    Reads and returns all EXIF tags from a file. If the file has no tag, None
+    is returned. Uses PIL Image.getexif() which is good for reading, but not
+    suitable for writing EXIF tags.
+    """
     try:
         img = Image.open(file)
-        exif_info = img.getexif()
-        assert len(exif_info) > 0
-        exif_data = {ExifTags.TAGS.get(t, t): v for t, v in exif_info.items()}
+        pil_exif = img.getexif()
+        assert len(pil_exif) > 0
+        exif_tags = {
+            str(ExifTags.TAGS.get(t, t)): str(v) for t, v in pil_exif.items()}
     except Exception:
-        logger.error(f"Unable to get EXIF data for: {file}")
+        logger.error(f"Unable to read EXIF info of: {file}")
         return None
 
-    return exif_data
+    return exif_tags
 
 
-def _parse_date_str_from_exif(exif_data):
-    date_str = exif_data["DateTime"]
+def _parse_date_from_exif(exif_tags: dict[str, str]) -> datetime:
+    date_str = exif_tags["DateTime"]
     dt = datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S")
     return dt
 
 
-def _parse_camera_str_from_exif(exif_data):
-    camera = exif_data["Model"]
+def _parse_camera_from_exif(exif_tags: dict[str, str]) -> str:
+    camera = exif_tags["Model"]
     camera_clean = ""
     for c in camera:
         if re.match(rf"[{common.legal_characters}]", c):
@@ -107,52 +105,42 @@ def _parse_camera_str_from_exif(exif_data):
     return camera_clean
 
 
-def _find_corrections_file(file: Path):
-
-    while file != common.pwf_root_path and file != Path("/"):
-
-        yaml_file = file / "date_corrections.yaml"
-
-        if file.is_dir() and yaml_file.exists():
-            return yaml_file
-
-        file = file.parent
-
-
-def _get_corrections_def(file: Path):
-
-    corr_file = _find_corrections_file(file)
-    if corr_file is not None:
-        logger.debug(corr_file)
-        with open(corr_file, "r") as f:
-            corr_def = yaml.safe_load(f)
-        return corr_def
+def _add_prefix(file: Path, prefix: str,
+                delimiter: str = common.tag_name_delimiter) -> None:
+    """
+    Add the prefix to a file. Uses common.prefix_str() to add the prefix to the
+    file name.
+    """
+    newname = file.parent / common.prefix_str(file.name, prefix, delimiter)
+    logger.debug(f"{file} => {newname}")
+    file.rename(newname)
 
 
-def _get_time_delta(file: Path, exif_info, corr_defs):
+def _remove_prefix(file: Path,
+                   delimiter: str = common.tag_name_delimiter) -> None:
+    """
+    Removes the prefix from a file. Uses common.unprefix_str() to remove the
+    prefix from the file name.
+    """
+    newname = common.unprefix_str(file.name, delimiter)
+    newname = file.parent / newname
+    logger.debug(f"{file} => {newname}")
+    file.rename(newname)
 
-    for corr_def in corr_defs:
-        correction_found = True
 
-        if not re.match(corr_def["file_name_filter"], file.name):
-            correction_found = False
-            continue
-
-        for exif_filter in corr_def["exif_filters"]:
-            if re.match(exif_filter["filter"],
-                        exif_info[exif_filter["tag"]]) is None:
-                correction_found = False
-                break
-
-        if correction_found:
-            correction = corr_def["correction"]
-            days = correction.get("days", 0)
-            hours = correction.get("hours", 0)
-            minutes = correction.get("minutes", 0)
-            seconds = correction.get("seconds", 0)
-            return timedelta(days=days, hours=hours, minutes=minutes,
-                             seconds=seconds)
-
+def _get_time_delta(filename: str, exif_tags: dict[str, str],
+                    corr_defs: CorrectionsDefinitions) -> timedelta:
+    """
+    Given an file name, the extracted exif_info and the corrections
+    definitions, this method determines the time delta to be applied.
+    """
+    corrections = get_file_corrections(corr_defs, filename, exif_tags)
+    if corrections is not None:
+        correction = corrections.time
+        return timedelta(days=correction.days,
+                         hours=correction.hours,
+                         minutes=correction.minutes,
+                         seconds=correction.seconds)
     return timedelta(0)
 
 
@@ -166,23 +154,25 @@ def main(path: Path, is_undo: bool = False, is_bare: bool = False,
 
     if is_undo:
         for file in files:
-            _remove_prefix(file, delimiter=common.tag_name_delimiter)
+            try:
+                _remove_prefix(file, delimiter=common.tag_name_delimiter)
+            except Exception:
+                logger.error(f"Cannot remove prefix from {file}")
         return
 
-    corr_defs = _get_corrections_def(path)
-    logger.debug(corr_defs)
+    corr_defs = get_corrections_definitions(path)
 
     for file in files:
 
-        exif_info = _get_exif_info(file)
-        if exif_info is None:
+        exif_tags = read_exif_tags(file)
+        if exif_tags is None:
             continue  # reporting already done
 
-        delta = _get_time_delta(file, exif_info, corr_defs)
+        delta = _get_time_delta(file.name, exif_tags, corr_defs)
 
-        dt = _parse_date_str_from_exif(exif_info) + delta
+        dt = _parse_date_from_exif(exif_tags) + delta
         dt_str = dt.strftime("%Y%m%d-%H%M%S")
-        camera = _parse_camera_str_from_exif(exif_info)
+        camera = _parse_camera_from_exif(exif_tags)
 
         if not add_camera:
             camera = None

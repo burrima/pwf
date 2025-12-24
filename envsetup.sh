@@ -30,7 +30,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "$SCRIPT_DIR"/venv/bin/activate
 
 echo "Install required python packages into venv"
-pip install pyexiv2 pillow rawpy pytest mypy pyyaml
+pip install pyexiv2 pillow rawpy pytest mypy pyyaml types-PyYAML dataclass-wizard
 
 echo "Add bin folder to PATH variable"
 export PATH="$SCRIPT_DIR/bin/:$PATH"

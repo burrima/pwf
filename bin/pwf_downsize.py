@@ -28,7 +28,7 @@ from textwrap import dedent
 import argparse
 import copy
 import logging
-import pyexiv2
+import pyexiv2  # type: ignore
 
 
 logger = logging.getLogger(__name__)

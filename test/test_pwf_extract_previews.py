@@ -232,5 +232,5 @@ def test_unsupported_extension(initial_paths, caplog):
     pwf_extract_previews.logger.setLevel(logging.DEBUG)
     pwf_extract_previews.main(src_path, None, is_nono=True)
 
-    text = f"Ignored file due to unsupported extension: {file}"
+    text = f"Ignore (unsupported extension): {file}"
     assert text in caplog.text

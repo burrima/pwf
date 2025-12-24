@@ -24,12 +24,10 @@
 from bin import common
 from pathlib import Path
 import logging
-import yaml
 import re
 
 from dataclasses import dataclass
 from typing import List
-
 from dataclass_wizard import YAMLWizard
 
 

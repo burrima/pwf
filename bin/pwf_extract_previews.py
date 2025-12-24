@@ -28,7 +28,7 @@ from pathlib import Path
 from textwrap import dedent
 import argparse
 import logging
-import rawpy  # type: ignore
+import pyexiv2  # type: ignore
 
 
 logger = logging.getLogger(__name__)
@@ -68,15 +68,12 @@ def extract_raw_preview(src_path: Path, dst_path: Path) -> None:
 
     tmp_path = Path("/tmp") / (src_path.name + ".jpg")
 
-    with rawpy.imread(str(src_path)) as raw:
-        # raises rawpy.LibRawNoThumbnailError if thumbnail missing
-        # raises rawpy.LibRawUnsupportedThumbnailError if unsupported
+    metadata = pyexiv2.ImageMetadata(str(src_path))
+    metadata.read()
 
-        thumb = raw.extract_thumb()
-        p = ImageFile.Parser()
-        p.feed(thumb.data)
-        im = p.close()
-        im.save(tmp_path)
+    previews = metadata.previews
+    largest = previews[-1]
+    largest.write_to_file(str(tmp_path)[:-4])  # cut away extra ".jpg"
 
     scale_image(tmp_path, dst_path, tag_sizes[preview_size_tag],
                 do_copy_exif=False)
@@ -198,7 +195,7 @@ def main(src_path: Path, dst_path: Path | None = None,
                 extract_raw_preview(file, preview_file)
         else:
             logger.warning(
-                f"Ignored file due to unsupported extension: {file}")
+                f"Ignore (unsupported extension): {file}")
 
         # # TODO: move to common code!
         # progress = int(100 * i / len(files))

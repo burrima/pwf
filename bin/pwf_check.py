@@ -28,6 +28,7 @@ from pathlib import Path
 from textwrap import dedent
 import argparse
 import copy
+import pyexiv2  # type: ignore
 import logging
 import re
 import stat
@@ -52,6 +53,7 @@ info_text: str = dedent(
     IGNORELIST/ONLYLIST
         cs    MD5 checksums (includes miss automatically)
         dup   duplicates
+        exif  EXIF info check
         miss  missing files (compared to md5 checksum file)
         name  name violations
         path  path structure
@@ -60,7 +62,7 @@ info_text: str = dedent(
     """) + common.info_text
 
 
-things_to_check = {"cs", "dup", "miss", "name", "path", "prot", "raw"}
+things_to_check = {"cs", "dup", "exif", "miss", "name", "path", "prot", "raw"}
 
 # TODO: add check for no-links (no links allowed in NEW and ORIGINAL)
 
@@ -263,6 +265,50 @@ def _check_missing_files(path: Path):
     pwf_protect.check_missing_files(path)
 
 
+def _check_exif(path: Path):
+
+    logger.info("check exif...")
+    found_any = False
+
+    extensions = common.raw_file_extensions.union(common.jpg_file_extensions)
+
+    for p in path.glob("**/*"):
+        if p.is_dir() or p.is_symlink():  # ignore dirs and symlinks
+            continue
+
+        if p.suffix[1:] not in extensions:  # cut away leading .
+            continue
+
+        try:
+            metadata = pyexiv2.ImageMetadata(str(p))
+            metadata.read()
+            if len(metadata.exif_keys) == 0:
+                raise RuntimeError("No keys")
+        except Exception:
+            logger.warning(f"No EXIF tag found in {p}")
+            continue
+
+        key_orig = "Exif.Image.DateTimeOriginal"
+        key = "Exif.Image.DateTime"
+        if key_orig in metadata.exif_keys:
+            if metadata[key_orig].raw_value != metadata[key].raw_value:
+                logger.error(f"EXIF: DateTimeOriginal != DateTime in {p}")
+                found_any = True
+
+        if key not in metadata.exif_keys:
+            logger.warning(f"EXIF: no DateTime in {p}")
+            continue
+
+        date = metadata[key].value
+        path_info = common.parse_path(p)
+        if date.year != path_info.year:
+            logger.error(f"EXIF: wrong DateTime year in {p}")
+            found_any = True
+
+    if found_any:
+        raise AssertionError("Found files with wrong EXIF info!")
+
+
 def _get_checklist(path: Path, ignorelist: set | None = None,
                    onlylist: set | None = None):
     """
@@ -348,6 +394,9 @@ def main(path: Path, ignorelist: set | None = None,
     elif "miss" in checklist:
         # cs includes check for missing files!
         _check_missing_files(path)
+
+    if "exif" in checklist:
+        _check_exif(path)
 
     logger.info("PASSED! Might be wise to check hard-disk S.M.A.R.T. status")
     logger.info("pwf_check: OK")

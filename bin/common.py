@@ -228,6 +228,8 @@ def parse_path(path: Path) -> Pwf_path_info:
         if info.file_type is None:
             if part.split("_")[-1] in type_dirs:
                 info.file_type = part.split("_")[-1]
+            elif part == "1_preview":
+                info.file_type = "jpg"
             else:
                 # NOTE: this is restrictive but helps to filter many illegal
                 # situations!

@@ -38,7 +38,7 @@ info_text: str = dedent(
     """
     TAGS
         UHD   3840x2160
-        QHD   2560x1440
+        QHD   2560x1440 (default)
         FHD   1920x1080
         HD    1280x720
 

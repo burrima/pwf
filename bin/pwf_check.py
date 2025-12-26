@@ -273,36 +273,49 @@ def _check_exif(path: Path):
     extensions = common.raw_file_extensions.union(common.jpg_file_extensions)
 
     for p in path.glob("**/*"):
+
+        logger.debug(p)
+
         if p.is_dir() or p.is_symlink():  # ignore dirs and symlinks
             continue
 
         if p.suffix[1:] not in extensions:  # cut away leading .
             continue
 
-        try:
-            metadata = pyexiv2.ImageMetadata(str(p))
-            metadata.read()
-            if len(metadata.exif_keys) == 0:
-                raise RuntimeError("No keys")
-        except Exception:
+        metadata = pyexiv2.ImageMetadata(str(p))
+        metadata.read()
+        if len(metadata.exif_keys) == 0:
             logger.warning(f"No EXIF tag found in {p}")
             continue
 
-        key_orig = "Exif.Image.DateTimeOriginal"
+        key_orig = "Exif.Photo.DateTimeOriginal"
+        key_digi = "Exif.Photo.DateTimeDigitized"
         key = "Exif.Image.DateTime"
-        if key_orig in metadata.exif_keys:
-            if metadata[key_orig].raw_value != metadata[key].raw_value:
-                logger.error(f"EXIF: DateTimeOriginal != DateTime in {p}")
-                found_any = True
 
         if key not in metadata.exif_keys:
-            logger.warning(f"EXIF: no DateTime in {p}")
+            logger.warning(f"No {key} in {p}")
             continue
 
-        date = metadata[key].value
+        if key_orig not in metadata.exif_keys:
+            logger.info(f"No Exif.Photo.DateTimeOriginal in {p}")
+        elif key_digi not in metadata.exif_keys:
+            logger.info(f"No Exif.Photo.DateTimeDigitized in {p}")
+        else:
+            dt_orig = metadata[key_orig].raw_value
+            dt_digi = metadata[key_orig].raw_value
+            dt = metadata[key].raw_value
+            if dt_orig != dt:
+                logger.warning(
+                    f"{key_orig} ({dt_orig}) != {key} ({dt}) in {p}")
+            if dt_orig != dt_digi:
+                logger.error(
+                    f"{key_orig} ({dt_orig}) != {key_digi} ({dt_digi}) in {p}")
+                found_any = True
+
+        date = metadata[key_orig].value
         path_info = common.parse_path(p)
         if date.year != path_info.year:
-            logger.error(f"EXIF: wrong DateTime year in {p}")
+            logger.error(f"Wrong year in {key_orig} ({date}) in {p}")
             found_any = True
 
     if found_any:

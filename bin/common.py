@@ -228,6 +228,8 @@ def parse_path(path: Path) -> Pwf_path_info:
         if info.file_type is None:
             if part.split("_")[-1] in type_dirs:
                 info.file_type = part.split("_")[-1]
+            elif part.split("_")[0] in type_dirs:
+                info.file_type = part.split("_")[0]
             elif part == "1_preview":
                 info.file_type = "jpg"
             else:
@@ -289,7 +291,8 @@ def get_orig_name(path: Path, with_extension: bool = False) -> str:
     try:
         name = unprefix_str(name)
     except RuntimeError:
-        logger.warning(f"Unable to remove name prefix: {path}")
+        # In this case, the name had no prefix. Silently ignore it
+        pass
     return name
 
 

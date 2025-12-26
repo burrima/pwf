@@ -96,14 +96,15 @@ def apply_corrections(file: Path, corrections: Corrections) -> None:
     metadata.read()
 
     try:
-        # Add DateTimeOriginal if it is not existing!
-        # Do the correction only on DateTime
-        key_orig_date = "Exif.Image.DateTimeOriginal"
-        key_date = "Exif.Image.DateTime"
-        if key_orig_date not in metadata.exif_keys:
-            metadata[key_orig_date] = metadata[key_date]
+        dt = metadata["Exif.Image.DateTime"].value
+        dt_orig = metadata["Exif.Photo.DateTimeOriginal"].value
 
-        metadata[key_date].value += delta
+        if dt == dt_orig or (dt_orig + delta) > dt:
+            logger.info(f"Overwrite {dt=} with {(dt_orig+delta)=} in {file}")
+            dt = metadata["Exif.Image.DateTime"].value = dt_orig + delta
+
+        metadata["Exif.Photo.DateTimeOriginal"].value += delta
+        metadata["Exif.Photo.DateTimeDigitized"].value += delta
 
         for tag_corr in corrections.tags:
             value = metadata[tag_corr.tag].raw_value

@@ -43,14 +43,8 @@ info_text: str = dedent(
     PATH is a file) by prefixing them with a date string. The purpose is to
     make the folder view sort the files properly.
 
-    The option -s can be used to provide a shell script which takes the name of
-    the picture and prints the date string. This is useful to apply a
-    correction to the date/time (remember: original files are protected and
-    must not be changed). This is for backwards-compatibility to old
-    bash-scripts only.
-
-    By default (=new way), the script traverses the directory tree upwards to
-    find the yaml file "exif_corrections.yaml" automatically.
+    By default, the script traverses the directory tree upwards to find the
+    yaml file "exif_corrections.yaml" automatically.
 
     Auto-correction can be disabled completely with the option -b in which case
     the date will be based on pure, uncorrected EXIF data.
@@ -86,9 +80,13 @@ def read_exif_info(file: Path) -> tuple[datetime, str]:
     metadata = pyexiv2.ImageMetadata(str(file))
     metadata.read()
 
+    if len(metadata.exif_keys) == 0:
+        raise RuntimeError(f"No EXIF info found in {file}")
+
     # Try to take DateTimeOriginal and fall-back to DateTime
-    date_key = "Exif.Image.DateTimeOriginal"
+    date_key = "Exif.Photo.DateTimeOriginal"
     if date_key not in metadata.exif_keys:
+        logger.warning(f"Falling back to Exif.Image.DateTime in {file}")
         date_key = "Exif.Image.DateTime"
 
     date = metadata[date_key].value
@@ -157,7 +155,8 @@ def main(path: Path, is_undo: bool = False, is_bare: bool = False,
                 logger.error(f"Cannot remove prefix from {file}")
         return
 
-    corr_defs = get_corrections_definitions(path)
+    if not is_bare:
+        corr_defs = get_corrections_definitions(path)
 
     for file in files:
 
@@ -167,8 +166,10 @@ def main(path: Path, is_undo: bool = False, is_bare: bool = False,
             logger.error(f"Unable to read EXIF info of: {file} {err=}")
             continue
 
-        delta = _get_time_delta(file, corr_defs)
-        date += delta
+        if not is_bare:
+            delta = _get_time_delta(file, corr_defs)
+            date += delta
+
         date_str = date.strftime("%Y%m%d-%H%M%S")
 
         if add_camera and camera_first:
@@ -197,9 +198,6 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--camerafirst",
                         help="add camera tag behind date tag",
                         action="store_true")
-    parser.add_argument("-s", "--script",
-                        help="script to get date correction (deprecated)",
-                        default="")
     parser.add_argument("-l", "--loglevel",
                         help="log level to use",
                         default="INFO")

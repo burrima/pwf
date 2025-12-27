@@ -86,3 +86,5 @@ _fzf_setup_completion path pwf-rename-by-date
 _fzf_setup_completion path pwf_rename_by_date.py
 _fzf_setup_completion path pwf-fix-exif
 _fzf_setup_completion path pwf_fix_exif.py
+_fzf_setup_completion path pwf-interactive
+_fzf_setup_completion path pwf_interactive.py

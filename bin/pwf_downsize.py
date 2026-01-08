@@ -137,7 +137,7 @@ def copy_exif(src: Path, dst: Path):
 
 def scale_video(src_path: Path, dst_path: Path, box: Size) -> None:
     # ffmpeg -i $in_file -vf scale="$SIZE" -c:v libx265 $out_file
-    pass
+    raise NotImplementedError("Not yet implemented!")
 
 
 def main(path: Path, tag: str) -> None:
@@ -169,7 +169,7 @@ def main(path: Path, tag: str) -> None:
 
         if file.suffix[1:] in common.jpg_file_extensions:
             scale_image(file, dst_file, box, True)
-        elif file.suffix in common.video_file_extensions:
+        elif file.suffix[1:] in common.video_file_extensions:
             scale_video(file, dst_file, box)
         else:
             raise ValueError("Can only downsize jpg images and videos!")

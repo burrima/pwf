@@ -260,7 +260,7 @@ def unprefix_str(file_name: str, delimiter: str = tag_name_delimiter):
     """
     newname = None
     if delimiter in file_name:
-        newname = file_name.split(delimiter, 2)[1]
+        newname = file_name.split(delimiter)[-1]
     elif re.match(r"^[0-9]{8}-[0-9]{6}-.*", file_name):
         # backwards-compatibility
         newname = f"{file_name[16:]}"

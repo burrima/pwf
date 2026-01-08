@@ -27,6 +27,7 @@ from PIL import Image
 from textwrap import dedent
 import argparse
 import copy
+import ffmpeg
 import logging
 import pyexiv2  # type: ignore
 
@@ -113,7 +114,11 @@ def scale_image(src: Path, dst_path: Path, box: Size, align_box: bool = True,
 
     im = Image.open(src)
 
-    size = compute_inside_box(Size(im.width, im.height), box, align_box)
+    orig_size = get_video_dimensions(src_path)
+    size = compute_inside_box(orig_size, box, align_box)
+
+    if size == orig_size:
+        return
 
     im_scaled = im.resize(size.get_int_size(),
                           resample=Image.Resampling.BICUBIC,
@@ -135,9 +140,36 @@ def copy_exif(src: Path, dst: Path):
     dst_metadata.write()
 
 
-def scale_video(src_path: Path, dst_path: Path, box: Size) -> None:
+def get_video_dimensions(path: Path):
+    rotation = 0
+    probe = ffmpeg.probe(path)
+    video_stream = next(
+        s for s in probe['streams'] if s['codec_type'] == 'video')
+    if 'side_data_list' in video_stream:
+        rotation = video_stream['side_data_list'][0]['rotation']
+    width = int(video_stream['width'])
+    height = int(video_stream['height'])
+
+    return Size(width, height) if rotation in [0, 180] else Size(height, width)
+
+
+def scale_video(src_path: Path, dst_path: Path, box: Size,
+                align_box: bool = True) -> None:
     # ffmpeg -i $in_file -vf scale="$SIZE" -c:v libx265 $out_file
-    raise NotImplementedError("Not yet implemented!")
+
+    orig_size = get_video_dimensions(src_path)
+    size = compute_inside_box(orig_size, box, align_box)
+
+    if size == orig_size:
+        return
+
+    (
+        ffmpeg
+        .input(src_path)
+        .filter('scale', size.width, size.height)
+        .output(str(dst_path))  # bug: does not take Path object
+        .run()
+    )
 
 
 def main(path: Path, tag: str) -> None:
@@ -170,7 +202,7 @@ def main(path: Path, tag: str) -> None:
         if file.suffix[1:] in common.jpg_file_extensions:
             scale_image(file, dst_file, box, True)
         elif file.suffix[1:] in common.video_file_extensions:
-            scale_video(file, dst_file, box)
+            scale_video(file, dst_file, box, True)
         else:
             raise ValueError("Can only downsize jpg images and videos!")
 

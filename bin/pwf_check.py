@@ -53,7 +53,7 @@ info_text: str = dedent(
     IGNORELIST/ONLYLIST
         cs    MD5 checksums (includes miss automatically)
         dup   duplicates
-        exif  EXIF info check
+        exif  EXIF info check (required for datetime corrections and re-naming)
         miss  missing files (compared to md5 checksum file)
         name  name violations
         path  path structure
@@ -282,8 +282,12 @@ def _check_exif(path: Path):
         if p.suffix[1:] not in extensions:  # cut away leading .
             continue
 
-        metadata = pyexiv2.ImageMetadata(str(p))
-        metadata.read()
+        try:
+            metadata = pyexiv2.ImageMetadata(str(p))
+            metadata.read()
+        except Exception:
+            logger.warning(f"Cannot read EXIF tag from {p}")
+            continue
         if len(metadata.exif_keys) == 0:
             logger.warning(f"No EXIF tag found in {p}")
             continue

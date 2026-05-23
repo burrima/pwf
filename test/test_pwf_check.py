@@ -266,12 +266,12 @@ def test_raw(initial_paths, caplog):
 
 def test_get_checklist_normal():
     assert pwf_check.things_to_check == {
-        "cs", "dup", "miss", "name", "path", "prot", "raw"}
+        "cs", "dup", "miss", "name", "path", "prot", "raw", "exif"}
 
     logging.info(">>> assert default checklist for 0_new")
     p = Path(f"{root}/0_new/")
     cl = pwf_check._get_checklist(p)
-    assert cl == {"name", "raw", "path", "dup"}
+    assert cl == {"name", "raw", "path", "dup", "exif"}
 
     logging.info(">>> assert default checklist for 1_original")
     p = Path(f"{root}/1_original/")
@@ -281,17 +281,17 @@ def test_get_checklist_normal():
     logging.info(">>> assert default checklist for 2_lab")
     p = Path(f"{root}/2_lab/")
     cl = pwf_check._get_checklist(p)
-    assert cl == {"name", "dup"}
+    assert cl == {"name", "dup", "exif"}
 
     logging.info(">>> assert default checklist for 3_album")
     p = Path(f"{root}/3_album/")
     cl = pwf_check._get_checklist(p)
-    assert cl == {"name", "dup", "path", "raw"}
+    assert cl == {"name", "dup", "path", "raw", "exif"}
 
     logging.info(">>> assert default checklist for 4_print")
     p = Path(f"{root}/4_print/")
     cl = pwf_check._get_checklist(p)
-    assert cl == {"name", "dup", "path", "raw"}
+    assert cl == {"name", "dup", "path", "raw", "exif"}
 
 
 def test_get_checklist_ignore(caplog):
@@ -315,12 +315,12 @@ def test_get_checklist_ignore(caplog):
 
     logging.info(">>> test normal ingorelist use case")
     cl = pwf_check._get_checklist(p, ignorelist={"cs", "dup"})
-    assert cl == {"miss", "name", "path", "prot", "raw"}
+    assert cl == {"miss", "name", "path", "prot", "raw", "exif"}
 
 
 def test_get_checklist_ignore_name(caplog):
     logging.info(">>> print warning when name check is ignored")
     p = Path(f"{root}/1_original/")
     cl = pwf_check._get_checklist(p, ignorelist={"name"})
-    assert cl == {"cs", "dup", "miss", "path", "prot", "raw"}
+    assert cl == {"cs", "dup", "miss", "path", "prot", "raw", "exif"}
     assert "Ignoring name violations is strongly discouraged!" in caplog.text

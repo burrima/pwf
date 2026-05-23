@@ -22,7 +22,8 @@
 
 
 from bin import common, pwf_check, pwf_import, pwf_statistics, \
-    pwf_extract_previews, pwf_rename_by_date, pwf_link, pwf_fix_exif
+    pwf_extract_previews, pwf_rename_by_date, pwf_link, pwf_fix_exif, \
+    pwf_downsize
 from pathlib import Path
 from textwrap import dedent
 import argparse
@@ -32,7 +33,7 @@ import yaml
 from enum import Enum, auto
 
 
-class  State(Enum):
+class State(Enum):
     INITIAL = auto(),
     IMPORT = auto(),
     ORIGINAL = auto(),
@@ -40,6 +41,7 @@ class  State(Enum):
     LAB_FIX_SORTING = auto(),
     LAB_IMPORT_ORIGINALS = auto(),
     LAB_PROCESS = auto(),
+    ALBUM = auto(),
 
     FINAL = auto(),
 
@@ -168,7 +170,7 @@ def handle_state_initial(path_info: common.Pwf_path_info) -> State:
     return _load_last_state(path_info)
 
 
-def handle_state_import(path_info: common.Pwf_path_info):
+def handle_state_import(path_info: common.Pwf_path_info) -> State:
     logger.info("STATE: IMPORT")
 
     _save_last_state(path_info, State.IMPORT)
@@ -210,7 +212,7 @@ def handle_state_import(path_info: common.Pwf_path_info):
     return State.ORIGINAL
 
 
-def handle_state_original(path_info: common.Pwf_path_info):
+def handle_state_original(path_info: common.Pwf_path_info) -> State:
     logger.info("STATE: ORIGINAL")
     _save_last_state(path_info, State.ORIGINAL)
 
@@ -234,7 +236,7 @@ def handle_state_original(path_info: common.Pwf_path_info):
     return State.FINAL
 
 
-def handle_state_lab_prepare(path_info: common.Pwf_path_info):
+def handle_state_lab_prepare(path_info: common.Pwf_path_info) -> State:
     logger.info("STATE: LAB_PREPARE")
     _save_last_state(path_info, State.LAB_PREPARE)
 
@@ -259,7 +261,7 @@ def handle_state_lab_prepare(path_info: common.Pwf_path_info):
     return State.LAB_FIX_SORTING
 
 
-def handle_state_lab_fix_sorting(path_info: common.Pwf_path_info):
+def handle_state_lab_fix_sorting(path_info: common.Pwf_path_info) -> State:
     logger.info("STATE: LAB_FIX_SORTING")
     _save_last_state(path_info, State.LAB_FIX_SORTING)
 
@@ -302,7 +304,9 @@ def handle_state_lab_fix_sorting(path_info: common.Pwf_path_info):
     return State.LAB_FIX_SORTING
 
 
-def handle_state_lab_import_originals(path_info: common.Pwf_path_info):
+def handle_state_lab_import_originals(
+    path_info: common.Pwf_path_info) -> State:
+
     logger.info("STATE: LAB_IMPORT_ORIGINALS")
     _save_last_state(path_info, State.LAB_IMPORT_ORIGINALS)
 
@@ -326,7 +330,7 @@ def handle_state_lab_import_originals(path_info: common.Pwf_path_info):
     return State.LAB_PROCESS
 
 
-def handle_state_lab_process(path_info: common.Pwf_path_info):
+def handle_state_lab_process(path_info: common.Pwf_path_info) -> State:
     logger.info("STATE: LAB_PROCESS")
     _save_last_state(path_info, State.LAB_PROCESS)
 
@@ -339,19 +343,22 @@ def handle_state_lab_process(path_info: common.Pwf_path_info):
                 "Put final images into the folder 3_final_jpg/"])
 
     choice = _user_choice(choices=[
+        "Re-import originals (overwrite)",
         "Copy unprocessed original jpg files to final folder",
         "Copy unprocessed original video & audio files to final folder",
         "Apply EXIF corrections to final images",
-        "Re-import originals (overwrite)",
         "DONE"], default=4)
     match choice:
-        case 0:  # copy remaining, unprocessed jpg originals to final
+        case 0:  # re-import originals
+            _user_confirm("Manually delete links to originals as needed")
+            return State.LAB_IMPORT_ORIGINALS
+        case 1:  # copy remaining, unprocessed jpg originals to final
             for ext in common.jpg_file_extensions:
                 for f in (path / "2_original_jpg").glob(f"*.{ext}"):
                     if (path / "3_final_jpg" / f.name).exists():
                         continue
                     shutil.copy(f, path / "3_final_jpg", follow_symlinks=False)
-        case 1:  # copy unprocessed video and audio to final
+        case 2:  # copy unprocessed video and audio to final
             for ext in common.video_file_extensions:
                 for f in (path / "2_original_video").glob(f"*.{ext}"):
                     if (path / "3_final_video" / f.name).exists():
@@ -364,7 +371,7 @@ def handle_state_lab_process(path_info: common.Pwf_path_info):
                         continue
                     shutil.copy(f, path / "3_final_audio",
                                 follow_symlinks=False)
-        case 2:  # apply exif corrections
+        case 3:  # apply exif corrections
             if _user_ask_yes_no([
                     "WARNING: corrections must only be applied once!",
                     "There is no built-in protection against multiple calls!",
@@ -372,13 +379,45 @@ def handle_state_lab_process(path_info: common.Pwf_path_info):
                 pwf_fix_exif.main(path / "3_final_jpg")
                 pwf_rename_by_date.main(path / f"3_final_jpg", is_undo=True)
                 pwf_rename_by_date.main(path / f"3_final_jpg", is_bare=True)
-        case 3:  # re-import originals
-            _user_confirm("Manually delete links to originals as needed")
-            return State.LAB_IMPORT_ORIGINALS
         case 4:  # DONE
-            return State.FINAL
+            for file_type in common.type_dirs:
+                src_path = path / f"3_final_{file_type}"
+                if src_path.exists():
+                    pwf_link.main(src_path, Path("@album"))
+            _user_confirm(
+                "All final files have been linked to the default album.")
+            return State.ALBUM
 
     return State.LAB_PROCESS
+
+
+def handle_state_album(path_info: common.Pwf_path_info) -> State:
+    logger.info("STATE: ALBUM")
+    _save_last_state(path_info, State.ALBUM)
+
+    path = common.pwf_root_path / "3_album" / str(path_info.year) \
+        / str(path_info.event)
+
+    choice = _user_choice(choices=[
+        "Downsize images",
+        "Downsize videos",
+        "DONE"], default=2)
+    match choice:
+        case 0:  # downsize images
+            path = path / "jpg"
+        case 1:
+            path = path / "video"
+        case _:
+            return State.FINAL
+
+    size = _user_choice(choices=[
+        "UHD   3840x2160",
+        "QHD   2560x1440",
+        "FHD   1920x1080",
+        "HD    1280x720"], default=1)
+    pwf_downsize.main(path, ["UHD", "QHD", "FHD", "HD"][size])
+
+    return State.ALBUM
 
 
 def handle_state(state: State, path_info: common.Pwf_path_info) -> State:

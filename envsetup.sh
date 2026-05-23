@@ -36,8 +36,10 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 echo "Install required python packages into venv"
 pip install --upgrade pip setuptools wheel
-pip install py3exiv2 pillow pytest mypy pyyaml types-PyYAML dataclass-wizard \
-    ffmpeg-python
+pip install py3exiv2 pillow pyyaml types-PyYAML dataclass-wizard ffmpeg-python
+# required for development only:
+echo "For development, please install the following packages manually:"
+echo "pip install mypy pytest jedi jedi-language-server
 
 echo "Add bin folder to PATH variable"
 export PATH="$SCRIPT_DIR/bin/:$PATH"

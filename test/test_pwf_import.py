@@ -157,3 +157,12 @@ def test_png_file_in_jpg_folder(initial_paths):
     with pytest.raises(AssertionError) as ex:
         pwf_import.main(Path(f"{root}/0_new/2024-10-30_event_1/"))
     assert str(ex.value) == "Found files in wrong locations!"
+
+
+def test_illegal_characters(initial_paths):
+    test_common.create_paths((
+        (f"{root}/0_new/2024-10-30_event_1/jpg/haus+garten.jpg", 1000),
+    ))
+    with pytest.raises(AssertionError) as ex:
+        pwf_import.main(Path(f"{root}/0_new/2024-10-30_event_1/"))
+    assert str(ex.value) == "Found illegal chars in file or folder names!"

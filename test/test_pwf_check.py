@@ -145,6 +145,7 @@ def test_name(initial_paths, caplog):
     test_common.create_paths((
         (f"{root}/0_new/2024-10-30_event & space/", 0),
         (f"{root}/0_new/2024-10-30_event & space/jpg/my file.jpg", 512),
+        (f"{root}/0_new/2024-10-30_event & space/jpg/my+file.jpg", 500),
     ))
 
     logging.info(">>> check for name violations")
@@ -156,6 +157,7 @@ def test_name(initial_paths, caplog):
     event_path = "0_new/2024-10-30_event & space"
     assert f"INFO Illegal: '{event_path}'" in caplog.text
     assert f"INFO Illegal: '{event_path}/jpg/my file.jpg'" in caplog.text
+    assert f"INFO Illegal: '{event_path}/jpg/my+file.jpg'" in caplog.text
 
 
 def test_fix_name_nono(initial_paths, caplog):
@@ -163,6 +165,8 @@ def test_fix_name_nono(initial_paths, caplog):
     test_common.create_paths((
         (f"{root}/0_new/2024-10-30_event & space/", 0),
         (f"{root}/0_new/2024-10-30_event & space/jpg/my file.jpg", 512),
+        (f"{root}/0_new/2024-10-30_event & space/jpg/my+file.jpg", 500),
+        (f"{root}/0_new/2024-10-30_event & space/jpg/my + file.jpg", 400),
     ))
 
     logging.info(">>> fix name violations - dry-run")
@@ -170,6 +174,12 @@ def test_fix_name_nono(initial_paths, caplog):
                    do_fix=True, is_nono=True)
 
     assert "INFO Dry-run: would do the following:" in caplog.text
+    text = "INFO rename: '0_new/2024-10-30_event & space/jpg/my + file.jpg'" +\
+        " -> 'my_und_file.jpg'"
+    assert text in caplog.text
+    text = "INFO rename: '0_new/2024-10-30_event & space/jpg/my+file.jpg'" +\
+        " -> 'my_und_file.jpg'"
+    assert text in caplog.text
     text = "INFO rename: '0_new/2024-10-30_event & space/jpg/my file.jpg'" +\
         " -> 'my_file.jpg'"
     assert text in caplog.text

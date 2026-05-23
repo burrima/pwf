@@ -48,7 +48,9 @@ pwf_root_path = Path(pwf_root)
 # Define which characters shall be replaced by pwf_check.py when fixing names:
 name_replacements: set[tuple[str, str]] = {
     (" ", "_"),
-    ("&", "und"),
+    ("&", "_und_"),
+    ("+", "_und_"),
+    ("__", "_"),
     ("-_", "")}
 
 

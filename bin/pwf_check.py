@@ -115,8 +115,9 @@ def _fix_names(path: Path, is_nono: bool):
     new_path = path
     for p in files_to_fix:
         newname = p.name
-        for r in common.name_replacements:
-            newname = newname.replace(r[0], r[1])
+        for _ in range(2):  # sometimes, another round is needed
+            for r in common.name_replacements:
+                newname = newname.replace(r[0], r[1])
 
         logger.info(f"rename: '{common.pwf_path(p)}' -> '{newname}'")
 

@@ -114,7 +114,7 @@ def scale_image(src: Path, dst_path: Path, box: Size, align_box: bool = True,
 
     im = Image.open(src)
 
-    orig_size = get_video_dimensions(src_path)
+    orig_size = Size(im.width, im.height)
     size = compute_inside_box(orig_size, box, align_box)
 
     if size == orig_size:

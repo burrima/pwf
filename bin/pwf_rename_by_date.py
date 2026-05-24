@@ -156,7 +156,11 @@ def main(path: Path, is_undo: bool = False, is_bare: bool = False,
         return
 
     if not is_bare:
-        corr_defs = get_corrections_definitions(path)
+        try:
+            corr_defs = get_corrections_definitions(path)
+        except FileNotFoundError:
+            logger.warning("No corrections file found, doing no corrections")
+            is_bare = True
 
     for file in files:
 

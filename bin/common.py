@@ -71,7 +71,7 @@ audio_file_extensions: set[str] = {"wav", "WAV", "mp3"}
 
 
 # Define which directory names are valid for the different file types:
-type_dirs: set[str] = {"raw", "jpg", "audio", "video"}
+type_dirs: set[str] = {"raw", "jpg", "png", "audio", "video"}
 
 
 # Define which file types are allowed to be stored in which type directory:
@@ -83,6 +83,8 @@ valid_file_locations: dict[str, str] = {
     ".jpeg": "jpg",
     ".JPG": "jpg",
     ".JPEG": "jpg",
+    ".PNG": "png",
+    ".png": "png",
     ".MOV": "video",
     ".mp4": "video",
     ".MP4": "video",

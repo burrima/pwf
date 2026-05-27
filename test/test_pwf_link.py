@@ -48,6 +48,8 @@ def initial_paths():
         (f"{root}/1_original/{event_dir}/jpg/DSC_100.jpg", 100),
         (f"{root}/1_original/{event_dir}/jpg/DSC_101.jpg", 100),
         (f"{root}/1_original/{event_dir}/jpg/DSC_102.jpg", 100),
+        (f"{root}/1_original/{event_dir}/png/", 0),
+        (f"{root}/1_original/{event_dir}/png/fancy_stuff.png", 10),
         (f"{root}/1_original/{event_dir}/raw/DSC_103.NEF", 900),
         (f"{root}/1_original/{event_dir}/audio/track01.mp3", 75),
         (f"{root}/1_original/{event_dir}/video/birds.mpeg", 850),
@@ -182,6 +184,7 @@ def test_lab_preparation(initial_paths, caplog, type_dir):
     file = {
         "raw": "DSC_103.NEF",
         "jpg": "DSC_100.jpg",
+        "png": "fancy_stuff.png",
         "audio": "track01.mp3",
         "video": "birds.mpeg"
     }[type_dir]
@@ -218,6 +221,7 @@ def test_lab_preparation_with_filter(initial_paths, caplog, type_dir):
     file = {
         "raw": "DSC_103.NEF",
         "jpg": "DSC_100.jpg",
+        "png": "fancy_stuff.png",
         "audio": "track01.mp3",
         "video": "birds.mpeg"
     }[type_dir]

@@ -64,8 +64,10 @@ Inside an event folder, files are stored in sub-folders:
 
     jpg/    # JPG and JPEG files
     raw/    # RAW files from camera
+    png/    # PNG files
     video/  # video files of any type
     audio/  # audio files of any type
+    other/  # any other file type, e.g. text notes
 
 There might be other folders - but this is the ones I use by my own. More on extending the scripts later. I mostly care about photos - but video and audio files are also interesting sometimes to make a nice diashow complete.
 
@@ -173,7 +175,7 @@ To prepare the lab for an event, use the following script:
 
     pwf-prepare-lab PATH_TO_ORIG
 
-The first time this script is called (i.e. when no corresponding event folder is present in the `2_lab/` folder structure) it creates a new event  folder in the lab directory and puts only the preview files into `1_previews/` (jpg and raw previes combined). Furthermore, it uses `pwf-rename-by-date` to append a date prefix in front of each preview file name. This brings the files from different cameras into order.
+The first time this script is called (i.e. when no corresponding event folder is present in the `2_lab/` folder structure) it creates a new event  folder in the lab directory and puts only the preview files into `1_previews/` (jpg and raw previews combined). Furthermore, it uses `pwf-rename-by-date` to append a date prefix in front of each preview file name. This brings the files from different cameras into order.
 
 Now you can do filtering (delete unused previews) and fix the dates stored inside the pictures (if cameras were not aligned). More on this later.
 

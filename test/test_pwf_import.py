@@ -66,6 +66,32 @@ def initial_paths():
 
 def test_normal(initial_paths):
     pwf_import.main(Path(f"{root}/0_new/2024-10-30_event_1/"))
+    assert Path(
+        f"{root}/1_original/2024/2024-10-30_event_1/jpg/DSC_1000.jpg").exists()
+    assert Path(
+        f"{root}/1_original/2024/2024-10-30_event_1/jpg/DSC_1001.jpg").exists()
+    assert Path(
+        f"{root}/1_original/2024/2024-10-30_event_1/jpg/DSC_1002.jpg").exists()
+
+
+def test_normal_with_png(initial_paths):
+    test_common.create_paths((
+        (f"{root}/0_new/2024-10-30_event_1/png/asdf.png", 10),
+    ))
+    pwf_import.main(Path(f"{root}/0_new/2024-10-30_event_1/"))
+    assert Path(
+        f"{root}/1_original/2024/2024-10-30_event_1/png/asdf.png").exists()
+
+
+def test_normal_with_other(initial_paths, caplog):
+    test_common.create_paths((
+        (f"{root}/0_new/2024-10-30_event_1/other/travel_notes.md", 20),
+    ))
+    pwf_import.main(Path(f"{root}/0_new/2024-10-30_event_1/"))
+
+    assert Path(f"{root}/1_original/2024/2024-10-30_event_1/"
+                "other/travel_notes.md").exists()
+    assert "WARNING Not supported, but accepted file format:" in caplog.text
 
 
 def test_path_not_in_new(initial_paths):

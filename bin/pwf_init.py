@@ -36,15 +36,21 @@ paths = (
     # path, size
     ("0_new/template/raw/", 0),
     ("0_new/template/jpg/", 0),
+    ("0_new/template/png/", 0),
     ("0_new/template/audio/", 0),
     ("0_new/template/video/", 0),
+    ("0_new/template/other/", 0),
 
     ("0_new/2024-10-30_example_event/jpg/DSC_1234.jpg", 20000),
     ("0_new/2024-10-30_example_event/jpg/DSC_1235.jpg", 21000),
     ("0_new/2024-10-30_example_event/jpg/DSC_1236.jpg", 22000),
 
+    ("0_new/2024-10-30_example_event/png/fancy_stuff.png", 99),
+
     ("0_new/2024-10-30_example_event/raw/DSC_1237.NEF", 30000),
     ("0_new/2024-10-30_example_event/raw/DSC_1238.NEF", 31000),
+
+    ("0_new/2024-10-30_example_event/other/travel_notes.md", 20),
 
     ("1_original/", 0),
     ("2_lab/", 0),

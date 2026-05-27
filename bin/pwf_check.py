@@ -249,8 +249,11 @@ def _check_paths(path: Path):
             if p.parent.name in common.valid_file_locations.values():
                 logger.error(f"File in wrong location: {common.pwf_path(p)}")
                 found_any = True
+            elif p.parent.name == "other":
+                logger.warning(f"Not supported, but accepted file format: {p}")
             else:
                 logger.warning(f"No supported file format: {p}")
+                found_any = True
 
     if found_any:
         raise AssertionError("Found files in wrong locations!")

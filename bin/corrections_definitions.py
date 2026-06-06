@@ -27,7 +27,7 @@ import logging
 import re
 import pyexiv2  # type: ignore
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List
 from dataclass_wizard import YAMLWizard
 
@@ -70,8 +70,8 @@ class Filter:
     Filter dataclass
 
     """
-    filename: str
-    tags: List['FilterTag']
+    filename: str = ".*"
+    tags: List['FilterTag'] = field(default_factory=lambda: [])
 
 
 @dataclass
@@ -91,7 +91,8 @@ class Corrections:
 
     """
     time: 'Time'
-    tags: List['Tag']
+    tz_offset: str = "+02:00"
+    tags: List['Tag'] = field(default_factory=lambda: [])
 
 
 @dataclass
@@ -100,10 +101,10 @@ class Time:
     Time dataclass
 
     """
-    days: int
-    hours: int
-    minutes: int
-    seconds: int
+    days: int = 0
+    hours: int = 0
+    minutes: int = 0
+    seconds: int = 0
 
 
 @dataclass
@@ -159,6 +160,7 @@ def get_file_corrections(corr_defs: list[CorrectionsDefinitions],
     One file can only have 1 set of corrections. If different filters match the
     same file, only the first one is selected.
     """
+    corrections = None
     for corr_def in corr_defs:
         correction_found = True
 
@@ -176,5 +178,7 @@ def get_file_corrections(corr_defs: list[CorrectionsDefinitions],
                 break
 
         if correction_found:
-            return corr_def.corrections
-    return None
+            if corrections != None:
+                raise RuntimeError(f"Found multiple corrections for {file=}")
+            corrections = corr_def.corrections
+    return corrections

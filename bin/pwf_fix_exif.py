@@ -58,6 +58,7 @@ info_text: str = dedent(
               hours: 0
               minutes: -10
               seconds: -1
+            tz_offset: +02:00
             tags:
               - tag: Artist
                 pattern: ".*"  # regex for re.sub()
@@ -68,9 +69,9 @@ info_text: str = dedent(
     in the EXIF tag matching the pattern will be replaced by replacement. This
     provides fine-granular control.
 
-    Any of days, hours, minutes or seconds can be left away as long as there is
-    at least one of them. The items tag_corrections and time_correction are
-    optional as well.
+    Any yaml tag can generally be left away, as long as it makes sense. The
+    tool will complain if it does not understand anything. It will also
+    complain if multiple filters match an image.
     """) + common.info_text
 
 
@@ -110,6 +111,11 @@ def apply_corrections(file: Path, corrections: Corrections) -> None:
             value = metadata[tag_corr.tag].raw_value
             value = re.sub(tag_corr.pattern, tag_corr.replacement, value)
             metadata[tag_corr.tag] = value
+
+        tz_offset = corrections.tz_offset
+        # metadata["Exif.Image.OffsetTime"].value = tz_offset
+        metadata["Exif.Photo.OffsetTimeOriginal"] = tz_offset
+        metadata["Exif.Photo.OffsetTimeDigitized"] = tz_offset
 
     except Exception as err:
         logger.error(f"Unable to correct EXIF in {file} {err=}")

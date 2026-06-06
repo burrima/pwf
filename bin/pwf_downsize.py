@@ -163,13 +163,23 @@ def scale_video(src_path: Path, dst_path: Path, box: Size,
     if size == orig_size:
         return
 
-    (
-        ffmpeg
-        .input(src_path)
-        .filter('scale', size.width, size.height)
-        .output(str(dst_path))  # bug: does not take Path object
-        .run()
-    )
+    # 1. Define the input
+    input_file = ffmpeg.input(src_path)
+
+    # 2. Extract and filter the video stream
+    video_stream = input_file.video.filter('scale', size.width, size.height)
+
+    # 3. Extract the untouched audio stream
+    audio_stream = input_file.audio
+
+    # 4. Pass BOTH streams into the output node
+    # bug: does not take Path object
+    output = ffmpeg.output(video_stream, audio_stream, str(dst_path),
+                           acodec='copy', map_metadata=0,
+                           movflags='use_metadata_tags')
+
+    # 5. Run the pipeline
+    ffmpeg.run(output)
 
 
 def main(path: Path, tag: str) -> None:

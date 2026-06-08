@@ -207,7 +207,7 @@ def main(path: Path, tag: str) -> None:
             logger.info(f"Ignore (existing): {path}")
             continue
 
-        logger.info(f"Downsize {path} -> {tag}/")
+        logger.info(f"Downsize {file} -> {tag}/")
 
         if file.suffix[1:] in common.jpg_file_extensions:
             scale_image(file, dst_file, box, True)

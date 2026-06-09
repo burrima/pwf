@@ -196,7 +196,10 @@ def main(path: Path, is_nono: bool) -> None:
                 continue
 
             if is_nono:
-                corr_str = yaml.dump(asdict(corrections), Dumper=MyDumper,
+                corr_dict = asdict(corrections)
+                clean_data = {
+                    k: v for k, v in corr_dict.items() if v is not None}
+                corr_str = yaml.dump(clean_data, Dumper=MyDumper,
                                      allow_unicode=True, sort_keys=False)
                 corr_str = indent(corr_str, "    ")
                 logger.info(f"[NONO] Corrections for: {file}:\n{corr_str}")

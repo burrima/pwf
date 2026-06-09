@@ -27,6 +27,7 @@ import logging
 import re
 import pyexiv2  # type: ignore
 
+from copy import deepcopy
 from dataclasses import dataclass, field, fields
 from typing import List
 from dataclass_wizard import YAMLWizard
@@ -201,7 +202,7 @@ def get_file_corrections(corr_defs: list[CorrectionsDefinitions],
 
         if has_found:
             if corrections is None:
-                corrections = corr_def.corrections
+                corrections = deepcopy(corr_def.corrections)
             else:
                 merge_corrections(file, corr_def.corrections, corrections)
 

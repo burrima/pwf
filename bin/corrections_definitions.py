@@ -27,7 +27,7 @@ import logging
 import re
 import pyexiv2  # type: ignore
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import List
 from dataclass_wizard import YAMLWizard
 
@@ -43,56 +43,6 @@ Dataclass classes are generated with the following command:
   'import sys, yaml, json; print(json.dumps(yaml.safe_load(sys.stdin)))' |\
   wiz gs
 """
-
-
-@dataclass
-class Container:
-    """
-    Container dataclass
-
-    """
-    data: 'CorrectionsDefinitions'
-
-
-@dataclass
-class CorrectionsDefinitions(YAMLWizard):
-    """
-    CorrectionsDefinitions dataclass
-
-    """
-    filter: 'Filter'
-    corrections: 'Corrections'
-
-
-@dataclass
-class Filter:
-    """
-    Filter dataclass
-
-    """
-    filename: str = ".*"
-    tags: List['FilterTag'] = field(default_factory=lambda: [])
-
-
-@dataclass
-class FilterTag:
-    """
-    FilterTag dataclass
-
-    """
-    tag: str
-    value: str
-
-
-@dataclass
-class Corrections:
-    """
-    Corrections dataclass
-
-    """
-    time: 'Time'
-    tz_offset: str = "+02:00"
-    tags: List['Tag'] = field(default_factory=lambda: [])
 
 
 @dataclass
@@ -114,8 +64,59 @@ class Tag:
 
     """
     tag: str
-    pattern: str
-    replacement: str
+    pattern: str = r"^.*$"
+    replacement: str = ""
+
+
+@dataclass
+class Corrections:
+    """
+    Corrections dataclass
+
+    """
+    time: Time | None = None
+    tz_offset: str | None = None
+    gps_lat_lng: str | None = None
+    tags: List['Tag'] = field(default_factory=lambda: [])
+
+
+@dataclass
+class FilterTag:
+    """
+    FilterTag dataclass
+
+    """
+    tag: str
+    value: str
+
+
+@dataclass
+class Filter:
+    """
+    Filter dataclass
+
+    """
+    filename: str = ".*"
+    tags: List['FilterTag'] | None = None
+
+
+@dataclass
+class CorrectionsDefinitions(YAMLWizard):
+    """
+    CorrectionsDefinitions dataclass
+
+    """
+    filter: 'Filter' = field(default_factory=Filter)
+    corrections: 'Corrections' = field(default_factory=Corrections)
+
+
+@dataclass
+class Container:
+    """
+    Container dataclass
+
+    """
+    data: 'CorrectionsDefinitions'
 
 
 def find_corrections_file(file: Path) -> Path:
@@ -145,10 +146,26 @@ def get_corrections_definitions(file: Path) -> list[CorrectionsDefinitions]:
     NOTE: this method is also used by pwf_fix_exif.py
     """
     corr_file = find_corrections_file(file)
+    logging.info(f"Corrections file found: {corr_file}")
     cd = CorrectionsDefinitions.from_yaml_file(corr_file)
     if not isinstance(cd, list):
         cd = [cd]
     return cd
+
+
+def merge_corrections(file: Path,
+                      src : Corrections,
+                      dst : Corrections):
+    available_fields = [f.name for f in fields(Corrections)]
+    for f in available_fields:
+        src_val = getattr(src, f)
+        if src_val is not None:
+            if isinstance(src_val, list):
+                setattr(dst, f, src_val + getattr(dst, f))
+            else:
+                if getattr(dst, f) is not None:
+                    logger.warning(f"conflicting {f} correction for {file=}")
+                setattr(dst, f, src_val)
 
 
 def get_file_corrections(corr_defs: list[CorrectionsDefinitions],
@@ -162,23 +179,30 @@ def get_file_corrections(corr_defs: list[CorrectionsDefinitions],
     """
     corrections = None
     for corr_def in corr_defs:
-        correction_found = True
+
+        has_found = False
 
         if not re.match(corr_def.filter.filename, file.name):
-            correction_found = False
+            # filter does not apply to file name
             continue
 
-        metadata = pyexiv2.ImageMetadata(str(file))
-        metadata.read()
+        if corr_def.filter.tags is None:
+            has_found = True
+        else:
+            # read metdadata to see if a tag filter matches:
+            metadata = pyexiv2.ImageMetadata(str(file))
+            metadata.read()
 
-        for tag_filter in corr_def.filter.tags:
-            if re.match(tag_filter.value,
-                        metadata[tag_filter.tag].raw_value) is None:
-                correction_found = False
-                break
+            for tag_filter in corr_def.filter.tags:
+                if re.match(tag_filter.value,
+                            metadata[tag_filter.tag].raw_value) is not None:
+                    has_found = True
+                    break
 
-        if correction_found:
-            if corrections != None:
-                raise RuntimeError(f"Found multiple corrections for {file=}")
-            corrections = corr_def.corrections
+        if has_found:
+            if corrections is None:
+                corrections = corr_def.corrections
+            else:
+                merge_corrections(file, corr_def.corrections, corrections)
+
     return corrections

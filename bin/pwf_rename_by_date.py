@@ -130,7 +130,7 @@ def _get_time_delta(file: Path,
     definitions, this method determines the time delta to be applied.
     """
     corrections = get_file_corrections(corr_defs, file)
-    if corrections is not None:
+    if corrections is not None and corrections.time is not None:
         correction = corrections.time
         return timedelta(days=correction.days,
                          hours=correction.hours,

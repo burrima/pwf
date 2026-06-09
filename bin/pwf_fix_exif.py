@@ -155,9 +155,9 @@ def apply_corrections(file: Path, corrections: Corrections) -> None:
         metadata[tag_corr.tag] = value
 
     if  corrections.gps_lat_lng is not None:
-        lat, lng = corrections.gps_lat_lng.replace(" ", "").split(",")
-        lat = float(lat)
-        lng = float(lng)
+        lat_str, lng_str = corrections.gps_lat_lng.replace(" ", "").split(",")
+        lat = float(lat_str)
+        lng = float(lng_str)
         lat_ref = "N" if lat > 0 else "S"
         lng_ref = "E" if lng > 0 else "W"
 

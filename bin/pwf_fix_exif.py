@@ -118,16 +118,17 @@ def decimal_to_dms_fractions(decimal_coord):
 
 
 def apply_corrections(file: Path, corrections: Corrections) -> None:
-    time_corr = corrections.time
-    delta = timedelta(days=time_corr.days,
-                      hours=time_corr.hours,
-                      minutes=time_corr.minutes,
-                      seconds=time_corr.seconds)
 
     metadata = pyexiv2.ImageMetadata(str(file))
     metadata.read()
 
-    try:
+    if corrections.time is not None:
+        time_corr = corrections.time
+        delta = timedelta(days=time_corr.days,
+                          hours=time_corr.hours,
+                          minutes=time_corr.minutes,
+                          seconds=time_corr.seconds)
+
         # Try to take DateTimeOriginal and fall-back to DateTime
         date_key = "Exif.Photo.DateTimeOriginal"
         if date_key not in metadata.exif_keys:
@@ -141,36 +142,29 @@ def apply_corrections(file: Path, corrections: Corrections) -> None:
         metadata["Exif.Photo.DateTimeOriginal"] = new_date
         metadata["Exif.Photo.DateTimeDigitized"] = new_date
 
-        for tag_corr in corrections.tags:
-            if tag_corr.tag in metadata:
-                if "Latitude" in tag_corr.tag or "Longitude" in tag_corr.tag:
-                    logger.warning(f"Correcting GPS not supported in {file}!")
-                    continue
-                logger.debug(f"Correct {tag_corr.tag} in {file}")
-                value = metadata[tag_corr.tag].raw_value
-                value = re.sub(tag_corr.pattern, tag_corr.replacement, value)
-                metadata[tag_corr.tag] = value
-            else:
-                logger.debug(f"Set {tag_corr.tag} in {file}")
-                value = tag_corr.replacement
-                if "Latitude" in tag_corr.tag:
-                    lat_ref = "N" if float(value) > 0 else "S"
-                    metadata["Exif.GPSInfo.GPSLatitudeRef"] = lat_ref
-                    value = decimal_to_dms_fractions(float(value))
-                if "Longitude" in tag_corr.tag:
-                    lng_ref = "E" if float(value) > 0 else "W"
-                    metadata["Exif.GPSInfo.GPSLongitudeRef"] = lng_ref
-                    value = decimal_to_dms_fractions(float(value))
-                metadata[tag_corr.tag] = value
-
+    if corrections.tz_offset is not None:
         tz_offset = corrections.tz_offset
         # metadata["Exif.Image.OffsetTime"] = tz_offset
         metadata["Exif.Photo.OffsetTimeOriginal"] = tz_offset
         metadata["Exif.Photo.OffsetTimeDigitized"] = tz_offset
 
-    except Exception as err:
-        logger.error(f"Unable to correct EXIF in {file} {err=}")
-        return
+    for tag_corr in corrections.tags:
+        logger.debug(f"Correct {tag_corr.tag} in {file}")
+        value = metadata[tag_corr.tag].raw_value
+        value = re.sub(tag_corr.pattern, tag_corr.replacement, value)
+        metadata[tag_corr.tag] = value
+
+    if  corrections.gps_lat_lng is not None:
+        lat, lng = corrections.gps_lat_lng.replace(" ", "").split(",")
+        lat = float(lat)
+        lng = float(lng)
+        lat_ref = "N" if lat > 0 else "S"
+        lng_ref = "E" if lng > 0 else "W"
+
+        metadata["Exif.GPSInfo.GPSLatitudeRef"] = lat_ref
+        metadata["Exif.GPSInfo.GPSLongitudeRef"] = lng_ref
+        metadata["Exif.GPSInfo.GPSLatitude"] = decimal_to_dms_fractions(lat)
+        metadata["Exif.GPSInfo.GPSLongitude"] = decimal_to_dms_fractions(lng)
 
     if file.is_symlink():
         real_file = file.resolve()
@@ -178,6 +172,7 @@ def apply_corrections(file: Path, corrections: Corrections) -> None:
         shutil.copyfile(real_file, file)
 
     metadata.write()
+
 
 def main(path: Path, is_nono: bool) -> None:
 

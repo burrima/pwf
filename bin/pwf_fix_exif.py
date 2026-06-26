@@ -129,14 +129,20 @@ def apply_corrections(file: Path, corrections: Corrections) -> None:
                           minutes=time_corr.minutes,
                           seconds=time_corr.seconds)
 
-        # Try to take DateTimeOriginal and fall-back to DateTime
-        date_key = "Exif.Photo.DateTimeOriginal"
-        if date_key not in metadata.exif_keys:
-            logger.warning(f"Falling back to Exif.Image.DateTime in {file}")
-            date_key = "Exif.Image.DateTime"
+        if time_corr.fromname == True:
+            logger.warning(f"Setting date/time from file name in {file=}")
+            datetime_string = file.name[:15]
+            new_date = datetime.strptime(datetime_string, "%Y%m%d-%H%M%S")
+        else:
+            # Try to take DateTimeOriginal and fall-back to DateTime
+            date_key = "Exif.Photo.DateTimeOriginal"
+            if date_key not in metadata.exif_keys:
+                logger.warning(f"Falling back to Exif.Image.DateTime in {file}")
+                date_key = "Exif.Image.DateTime"
 
-        logger.debug(f"Add {delta=} to {file}")
-        new_date = metadata[date_key].value + delta
+            logger.debug(f"Add {delta=} to {file}")
+            new_date = metadata[date_key].value + delta
+
         metadata["Exif.Image.DateTime"] = new_date
         metadata["Exif.Image.DateTimeOriginal"] = new_date
         metadata["Exif.Photo.DateTimeOriginal"] = new_date

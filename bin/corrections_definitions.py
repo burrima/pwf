@@ -52,6 +52,7 @@ class Time:
     Time dataclass
 
     """
+    fromname: bool = False  # allow to take time from name without corrections
     days: int = 0
     hours: int = 0
     minutes: int = 0
